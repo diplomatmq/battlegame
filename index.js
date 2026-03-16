@@ -1,4 +1,3 @@
-// ...existing code from server/index.js...
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -32,7 +31,12 @@ io.on('connection', (socket) => {
 });
 
 bot.on('message', (msg) => {
-  bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!');
+  if (msg.text === '/start' && msg.chat.type === 'private') {
+    // Замените ссылку на вашу веб-аппу
+    bot.sendMessage(msg.chat.id, 'Открой игру: https://t.me/YOUR_BOT_USERNAME/webapp');
+  } else {
+    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!');
+  }
 });
 
 app.get('/', (req, res) => {
