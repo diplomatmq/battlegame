@@ -1,0 +1,131 @@
+// registration.ts — entry point for index.html
+import { getNick, setNick, getAvatar, setAvatar, getCharId, isNickTaken, registerNick, getTelegramUser, } from "./player.js";
+// ── Redirect if already registered ─────────────────────────────────────────
+if (getNick() && getCharId()) {
+    window.location.href = "menu.html";
+}
+// ── DOM refs ────────────────────────────────────────────────────────────────
+const avatarFrame = document.getElementById("avatarFrame");
+const avatarFileInput = document.getElementById("avatarFileInput");
+const nickInput = document.getElementById("nickInput");
+const nickStatus = document.getElementById("nickStatus");
+const btnCheck = document.getElementById("btnCheck");
+const btnOk = document.getElementById("btnOk");
+const bgCanvas = document.getElementById("bgCanvas");
+const flashEl = document.getElementById("flash");
+// ── Pre-fill ─────────────────────────────────────────────────────────────────
+const tgUser = getTelegramUser();
+if (tgUser?.username)
+    nickInput.value = tgUser.username;
+else if (getNick())
+    nickInput.value = getNick();
+const savedAvatar = getAvatar();
+if (savedAvatar) {
+    avatarFrame.innerHTML =
+        `<img src="${savedAvatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+}
+// ── Avatar upload ─────────────────────────────────────────────────────────────
+avatarFrame.addEventListener("click", () => avatarFileInput.click());
+avatarFileInput.addEventListener("change", () => {
+    const file = avatarFileInput.files?.[0];
+    if (!file)
+        return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        const dataUrl = reader.result;
+        setAvatar(dataUrl);
+        avatarFrame.innerHTML =
+            `<img src="${dataUrl}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    };
+    reader.readAsDataURL(file);
+});
+// ── Nick check ────────────────────────────────────────────────────────────────
+let nickOk = false;
+function checkNick() {
+    const nick = nickInput.value.trim();
+    if (nick.length < 3) {
+        nickStatus.textContent = "\u041e\u0448\u0438\u0431\u043a\u0430: \u043c\u0438\u043d 3 \u0441\u0438\u043c\u0432\u043e\u043b\u0430";
+        nickStatus.style.color = "#ff0055";
+        nickOk = false;
+        btnOk.disabled = true;
+        return;
+    }
+    if (isNickTaken(nick)) {
+        nickStatus.textContent = "\u0418\u043c\u044f \u0437\u0430\u043d\u044f\u0442\u043e!";
+        nickStatus.style.color = "#ff0055";
+        nickOk = false;
+        btnOk.disabled = true;
+    }
+    else {
+        nickStatus.textContent = "\u0418\u043c\u044f \u0441\u0432\u043e\u0431\u043e\u0434\u043d\u043e!";
+        nickStatus.style.color = "#00ff99";
+        nickOk = true;
+        btnOk.disabled = false;
+    }
+}
+// Auto-check on every keystroke
+nickInput.addEventListener("input", checkNick);
+function proceed() {
+    if (!nickOk) {
+        checkNick();
+        return;
+    }
+    const nick = nickInput.value.trim();
+    registerNick(nick);
+    setNick(nick);
+    if (tgUser?.id)
+        localStorage.setItem("tgUserId", String(tgUser.id));
+    if (flashEl) {
+        flashEl.style.opacity = "1";
+        setTimeout(() => {
+            window.location.href = "character.html";
+        }, 300);
+    }
+    else {
+        window.location.href = "character.html";
+    }
+}
+btnCheck.addEventListener("click", checkNick);
+btnOk.addEventListener("click", proceed);
+// Run once on load so pre-filled nick activates the button
+checkNick();
+// Expose for HTML onclick attributes (fallback)
+window["checkNick"] = checkNick;
+window["proceed"] = proceed;
+// ── Background particle canvas ────────────────────────────────────────────────
+(function startBgCanvas() {
+    if (!bgCanvas)
+        return;
+    const ctx = bgCanvas.getContext("2d");
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+    window.addEventListener("resize", () => {
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+    });
+    const stars = [];
+    for (let i = 0; i < 140; i++) {
+        stars.push({
+            x: Math.random() * bgCanvas.width,
+            y: Math.random() * bgCanvas.height,
+            s: Math.random() * 2 + 0.5,
+            v: Math.random() * 0.4 + 0.1,
+        });
+    }
+    function tick() {
+        ctx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+        ctx.fillStyle = "#0a0308";
+        ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+        for (const st of stars) {
+            ctx.fillStyle = `rgba(255,255,255,${0.4 + Math.random() * 0.3})`;
+            ctx.fillRect(st.x, st.y, st.s, st.s);
+            st.y += st.v;
+            if (st.y > bgCanvas.height) {
+                st.y = 0;
+                st.x = Math.random() * bgCanvas.width;
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+    tick();
+})();

@@ -1,0 +1,282 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Battle Realm — Главное меню</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+
+        body {
+            background: #0e0a03;
+            min-height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            font-family: 'Press Start 2P', monospace;
+            color: #c8a040;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Scanlines */
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(
+                0deg, transparent, transparent 2px,
+                rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* Background arena */
+        #bgCanvas { position: fixed; inset: 0; z-index: 0; }
+
+        /* ─── Top bar ───────────────────────────────── */
+        .topbar {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 520px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px 0;
+        }
+
+        .player-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .player-avatar {
+            width: 44px;
+            height: 44px;
+            border: 3px solid #c8a040;
+            box-shadow: 0 0 12px rgba(200,160,64,0.4);
+            background: #160e02;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .player-avatar img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        .player-info { display: flex; flex-direction: column; gap: 4px; }
+
+        .player-nick {
+            font-size: 9px;
+            color: #f0c040;
+            text-shadow: 0 0 8px rgba(240,192,64,0.5);
+        }
+
+        .player-level {
+            font-size: 6px;
+            color: #6b4810;
+            letter-spacing: 2px;
+        }
+
+        .coin-block {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 9px;
+            color: #f0c040;
+        }
+
+        .coin-icon { font-size: 14px; }
+
+        /* ─── Title ─────────────────────────────────── */
+        .game-title {
+            position: relative;
+            z-index: 2;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .game-title h1 {
+            font-size: 26px;
+            color: #f0c040;
+            text-shadow: 4px 4px 0 #5a2000, 0 0 30px rgba(240,192,64,0.5);
+            letter-spacing: 5px;
+        }
+
+        .game-title .sub {
+            font-size: 7px;
+            color: #4a3008;
+            letter-spacing: 5px;
+            margin-top: 4px;
+        }
+
+        /* ─── Arena / Character area ─────────────────── */
+        .arena-wrap {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 520px;
+            height: 280px;
+            flex-shrink: 0;
+        }
+
+        #arenaCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ─── Bottom nav ─────────────────────────────── */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0; right: 0;
+            z-index: 10;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 0;
+            padding-bottom: 18px;
+        }
+
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #160e02;
+            border: 3px solid #3a2008;
+            box-shadow: 4px 4px 0 #0e0a03;
+            color: #6b4810;
+            font-family: 'Press Start 2P', monospace;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s, transform 0.08s, box-shadow 0.08s;
+            padding: 10px 14px;
+        }
+
+        .nav-btn:hover {
+            border-color: #c8a040;
+            color: #c8a040;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0 #0e0a03;
+        }
+
+        .nav-btn .icon  { font-size: 22px; }
+        .nav-btn .label { font-size: 6px; letter-spacing: 2px; }
+
+        /* Shop & Challenges — side buttons */
+        .nav-btn.side {
+            width: 100px;
+            min-height: 70px;
+        }
+
+        /* Play — center, bigger */
+        .nav-btn.play {
+            width: 148px;
+            min-height: 84px;
+            border-color: #c8a040;
+            color: #f0c040;
+            box-shadow: 5px 5px 0 #0e0a03;
+            z-index: 2;
+            margin: 0 8px;
+            text-shadow: 0 0 10px rgba(240,192,64,0.6);
+        }
+
+        .nav-btn.play .label {
+            font-size: 10px;
+            letter-spacing: 3px;
+        }
+
+        .nav-btn.play:hover {
+            background: #c8a040;
+            color: #0e0a03;
+            text-shadow: none;
+        }
+
+        /* ─── Divider line above nav ─────────────────── */
+        .nav-line {
+            position: fixed;
+            bottom: 112px;
+            left: 0; right: 0;
+            height: 3px;
+            background: #3a2008;
+            z-index: 9;
+        }
+
+        #flash {
+            position: fixed; inset: 0;
+            background: #000; opacity: 0;
+            pointer-events: none; z-index: 998;
+            transition: opacity 0.25s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Top bar -->
+    <div class="topbar" id="topbar">
+        <div class="player-badge">
+            <div class="player-avatar" id="playerAvatar">⚔️</div>
+            <div class="player-info">
+                <div class="player-nick" id="playerNick">ГЕРОЙ</div>
+                <div class="player-level">LVL 1</div>
+            </div>
+        </div>
+        <div class="coin-block">
+            <span class="coin-icon">🪙</span>
+            <span id="coinCount">0</span>
+        </div>
+    </div>
+
+    <!-- Title -->
+    <div class="game-title">
+        <h1>BATTLE</h1>
+        <h1 style="margin-top:-8px;">REALM</h1>
+        <div class="sub">ВЫБЕРИ БОЙ</div>
+    </div>
+
+    <!-- Character arena -->
+    <div class="arena-wrap">
+        <canvas id="arenaCanvas"></canvas>
+    </div>
+
+    <!-- Divider -->
+    <div class="nav-line"></div>
+
+    <!-- Bottom navigation -->
+    <div class="bottom-nav">
+        <button class="nav-btn side" onclick="goShop()">
+            <div class="icon">🛒</div>
+            <div class="label">МАГАЗИН</div>
+        </button>
+
+        <button class="nav-btn play" onclick="goPlay()">
+            <div class="icon">⚔️</div>
+            <div class="label">ИГРАТЬ</div>
+        </button>
+
+        <button class="nav-btn side" onclick="goChallenges()">
+            <div class="icon">🏆</div>
+            <div class="label">ЧЕЛЛЕНДЖИ</div>
+        </button>
+    </div>
+
+    <div id="flash"></div>
+    <script type="module" src="dist/menu.js"></script>
+</body>
+</html>

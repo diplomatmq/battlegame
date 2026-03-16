@@ -1,0 +1,234 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Battle Realm — Выбор героя</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+
+        body {
+            background: #0e0a03;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Press Start 2P', monospace;
+            color: #c8a040;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        /* Scanlines */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent, transparent 2px,
+                rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        #bgCanvas { position: fixed; inset: 0; z-index: 0; }
+
+        .header {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 14px;
+            color: #f0c040;
+            text-shadow: 3px 3px 0 #5a2000, 0 0 20px rgba(240,192,64,0.5);
+            letter-spacing: 3px;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 7px;
+            color: #6b4810;
+            letter-spacing: 3px;
+        }
+
+        /* ─── Cards row ───────────────────────────────── */
+        .cards {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            width: 185px;
+            background: #160e02;
+            border: 3px solid #3a2008;
+            box-shadow: 0 0 0 1px #0e0a03, 4px 4px 0 #0e0a03;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.1s, box-shadow 0.1s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 14px 14px 12px;
+            position: relative;
+        }
+
+        .card:hover {
+            border-color: var(--char-color);
+            box-shadow: 0 0 0 1px #0e0a03, 4px 4px 0 #0e0a03, 0 0 25px rgba(var(--char-rgb), 0.35);
+            transform: translateY(-3px);
+        }
+
+        .card.selected {
+            border-color: var(--char-color) !important;
+            box-shadow: 0 0 0 2px var(--char-color), 0 0 30px rgba(var(--char-rgb), 0.5) !important;
+        }
+
+        .card-canvas-wrap {
+            width: 100px;
+            height: 130px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .card-canvas-wrap canvas {
+            display: block;
+        }
+
+        .char-name {
+            font-size: 8px;
+            color: var(--char-color);
+            text-shadow: 0 0 10px rgba(var(--char-rgb), 0.6);
+            margin-bottom: 4px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .char-desc {
+            font-size: 6px;
+            color: #6b4810;
+            margin-bottom: 10px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* Stat bars */
+        .stats { width: 100%; }
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 6px;
+            color: #8b6020;
+            width: 26px;
+            flex-shrink: 0;
+        }
+
+        .stat-bar-bg {
+            flex: 1;
+            height: 6px;
+            background: #0e0a03;
+            border: 1px solid #3a2008;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: var(--char-color);
+            box-shadow: 0 0 6px rgba(var(--char-rgb), 0.8);
+        }
+
+        /* Weapon badge */
+        .weapon-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 6px;
+            color: #0e0a03;
+            background: var(--char-color);
+            padding: 2px 5px;
+        }
+
+        /* Select button */
+        .btn-select {
+            margin-top: 10px;
+            width: 100%;
+            background: transparent;
+            border: 3px solid #3a2008;
+            color: #6b4810;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            padding: 8px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+
+        .card:hover .btn-select,
+        .card.selected .btn-select {
+            background: var(--char-color);
+            border-color: var(--char-color);
+            color: #0e0a03;
+        }
+
+        /* Confirm button */
+        .btn-confirm {
+            position: relative;
+            z-index: 1;
+            margin-top: 22px;
+            background: #c8a040;
+            border: none;
+            color: #0e0a03;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            padding: 13px 50px;
+            cursor: pointer;
+            letter-spacing: 4px;
+            box-shadow: 5px 5px 0 #6b4010;
+            transition: transform 0.08s, box-shadow 0.08s, opacity 0.2s;
+        }
+
+        .btn-confirm:not(:disabled):hover  { transform: translate(-1px,-1px); box-shadow: 6px 6px 0 #6b4010; }
+        .btn-confirm:not(:disabled):active { transform: translate(4px,4px);   box-shadow: 1px 1px 0 #6b4010; }
+        .btn-confirm:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        #flash {
+            position: fixed; inset: 0;
+            background: #000; opacity: 0;
+            pointer-events: none; z-index: 998;
+            transition: opacity 0.25s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="header">
+        <h1>▌ ВЫБОР ГЕРОЯ ▐</h1>
+        <p>ВЫБЕРИ СВОЕГО ПЕРВОГО БОЙЦА</p>
+    </div>
+
+    <div class="cards" id="cardsContainer"></div>
+
+    <button class="btn-confirm" id="btnConfirm" disabled onclick="confirmSelect()">
+        ▶ ВЫБРАТЬ
+    </button>
+
+    <div id="flash"></div>
+    <script type="module" src="dist/character.js"></script>
+</body>
+</html>

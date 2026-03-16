@@ -1,0 +1,1 @@
+{"root":["./src/challenges.ts","./src/character.ts","./src/fighter.ts","./src/game.ts","./src/menu.ts","./src/particles.ts","./src/player.ts","./src/registration.ts","./src/shop.ts"],"errors":true,"version":"5.9.3"}
