@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Battle Realm — Telegram WebApp Game",
   "scripts": {
-    "build": "tsc",
+    "build": "echo No build step",
     "watch": "tsc --watch",
     "dev": "concurrently \"tsc --watch\" \"http-server . -p 3000 -c-1 --cors\""
   },
