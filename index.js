@@ -35,7 +35,7 @@ bot.on('message', (msg) => {
     bot.sendMessage(msg.chat.id, 'Открой игру:', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Открыть игру', web_app: { url: 'https://battlerealme.monkeysdynasty.website' } }]
+          [{ text: 'Открыть игру', web_app: { url: 'https://battlerealme.monkeysdynasty.website/game.html' } }]
         ]
       }
     });
@@ -58,6 +58,8 @@ app.post('/telegram', async (req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+
+app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
