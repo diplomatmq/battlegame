@@ -32,8 +32,13 @@ io.on('connection', (socket) => {
 
 bot.on('message', (msg) => {
   if (msg.text === '/start' && msg.chat.type === 'private') {
-    // Замените ссылку на вашу веб-аппу
-    bot.sendMessage(msg.chat.id, 'Открой игру: https://t.me/YOUR_BOT_USERNAME/webapp');
+    bot.sendMessage(msg.chat.id, 'Открой игру:', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Открыть игру', web_app: { url: 'https://battlerealme.monkeysdynasty.website' } }]
+        ]
+      }
+    });
   } else {
     bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!');
   }
