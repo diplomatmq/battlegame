@@ -1,4 +1,4 @@
-// Express server with WebSocket and Telegram bot integration
+// ...existing code from server/index.js...
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -9,26 +9,18 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// PostgreSQL connection
 const pool = new Pool({
-  user: 'your_user',
-  host: 'localhost',
-  database: 'your_db',
-  password: 'your_password',
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
 });
 
-// Telegram bot setup
-const telegramToken = 'YOUR_TELEGRAM_BOT_TOKEN';
+const telegramToken = process.env.TELEGRAM_TOKEN;
 const bot = new TelegramBot(telegramToken, { polling: true });
 
-// Player matchmaking
 let waitingPlayer = null;
 
 io.on('connection', (socket) => {
   socket.on('play', () => {
     if (waitingPlayer) {
-      // Start game for both players
       io.to(waitingPlayer).emit('startGame', { opponent: socket.id });
       socket.emit('startGame', { opponent: waitingPlayer });
       waitingPlayer = null;
@@ -40,7 +32,6 @@ io.on('connection', (socket) => {
 });
 
 bot.on('message', (msg) => {
-  // Placeholder for Telegram bot logic
   bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!');
 });
 
