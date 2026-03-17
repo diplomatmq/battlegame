@@ -19,6 +19,41 @@ bot.on('polling_error', (err) => {
   console.error('Telegram polling_error', err);
 });
 
+// Configure Telegram updates delivery:
+// - If WEBHOOK_URL is provided, set webhook and expose POST /bot<token> to receive updates.
+// - Otherwise, try to start polling and log errors (handled by polling_error).
+const WEBHOOK_URL = process.env.WEBHOOK_URL || process.env.BASE_URL || process.env.SERVER_URL;
+if (WEBHOOK_URL) {
+  const hookPath = `/bot${telegramToken}`;
+  const hookUrl = `${WEBHOOK_URL.replace(/\/$/, '')}${hookPath}`;
+  (async () => {
+    try {
+      await bot.setWebHook(hookUrl);
+      console.log('Telegram webhook set to', hookUrl);
+    } catch (e) {
+      console.error('Failed to set Telegram webhook', e && e.message ? e.message : e);
+    }
+  })();
+
+  app.post(hookPath, express.json(), (req, res) => {
+    try {
+      bot.processUpdate(req.body);
+    } catch (e) {
+      console.error('Error processing Telegram update via webhook', e);
+    }
+    res.sendStatus(200);
+  });
+} else {
+  // Fallback: attempt polling. This may fail if another instance is polling (409),
+  // but we'll catch and log errors without crashing.
+  try {
+    bot.startPolling();
+    console.log('Telegram bot polling started (fallback).');
+  } catch (e) {
+    console.error('Failed to start Telegram polling:', e && e.message ? e.message : e);
+  }
+}
+
 let waitingPlayer = null;
 
 io.on('connection', (socket) => {
