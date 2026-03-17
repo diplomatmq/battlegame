@@ -13,7 +13,11 @@ const pool = new Pool({
 });
 
 const telegramToken = process.env.TELEGRAM_TOKEN;
-const bot = new TelegramBot(telegramToken, { polling: true });
+const bot = new TelegramBot(telegramToken, { polling: false });
+
+bot.on('polling_error', (err) => {
+  console.error('Telegram polling_error', err);
+});
 
 let waitingPlayer = null;
 
