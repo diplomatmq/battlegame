@@ -59,6 +59,35 @@ app.post('/telegram', async (req, res) => {
   }
 });
 
+// Return basic public user info (username + avatar URL) for Telegram user id
+app.get('/api/user/:id', async (req, res) => {
+  const userId = req.params.id;
+  try {
+    // Try to get chat (username/first_name)
+    const chat = await bot.getChat(userId);
+
+    // Try to retrieve profile photo (first available)
+    let avatar = null;
+    try {
+      const photos = await bot.getUserProfilePhotos(userId, { limit: 1 });
+      if (photos && photos.total_count > 0 && photos.photos && photos.photos[0] && photos.photos[0][0]) {
+        const fileId = photos.photos[0][0].file_id;
+        const file = await bot.getFile(fileId);
+        if (file && file.file_path) {
+          avatar = `https://api.telegram.org/file/bot${process.env.TELEGRAM_TOKEN}/${file.file_path}`;
+        }
+      }
+    } catch (e) {
+      // ignore profile photo errors
+    }
+
+    const username = (chat && (chat.username || chat.first_name)) || null;
+    res.json({ ok: true, id: userId, username, avatar });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 3000;

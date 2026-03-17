@@ -59,6 +59,54 @@ p1.playerDef = stats.def;
 p1.playerSpd = stats.spd;
 p1.equippedWeaponVisual = getEquippedWeaponVisual();
 
+// Responsive canvas: scale to wrapper size and devicePixelRatio
+const wrapper = document.getElementById('game-wrapper') as HTMLElement;
+function resizeCanvas() {
+  if (!wrapper) return;
+  const rect = wrapper.getBoundingClientRect();
+  const DPR = window.devicePixelRatio || 1;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  canvas.width = Math.max(300, Math.floor(rect.width * DPR));
+  canvas.height = Math.max(200, Math.floor(rect.height * DPR));
+  // scale drawing to DPR so 1 unit == CSS pixel
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// If opened inside Telegram WebApp, try to use user's Telegram username + avatar
+declare global { interface Window { Telegram?: any } }
+async function initTelegramUser() {
+  try {
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const user = tg.initDataUnsafe && tg.initDataUnsafe.user;
+      if (user) {
+        const username = user.username || `${user.first_name || ''}`.trim() || savedNick;
+        p1NameEl.textContent = username;
+        // fetch avatar from server endpoint (server will proxy Telegram file)
+        try {
+          const resp = await fetch(`/api/user/${user.id}`);
+          const j = await resp.json();
+          if (j && j.avatar) {
+            p1AvatarEl.innerHTML = `<img src="${j.avatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
+          } else {
+            p1AvatarEl.textContent = username.substring(0, 2).toUpperCase();
+            p1AvatarEl.style.color = meta.color;
+          }
+        } catch (e) {
+          p1AvatarEl.textContent = username.substring(0, 2).toUpperCase();
+          p1AvatarEl.style.color = meta.color;
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+initTelegramUser();
+
 // Enemy gets its own stats from the roster
 p2.playerAtk = enemy.atk;
 p2.playerDef = enemy.def;
