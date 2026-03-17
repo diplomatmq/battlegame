@@ -3,12 +3,43 @@
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
 
-// ── Guard ─────────────────────────────────────────────────────────────────────
-const nick   = getNick();
-const charId = getCharId();
-if (!nick || !charId) {
-  window.location.href = "index.html";
+// ── Guard / Telegram auto-fill ─────────────────────────────────────────────────
+let nick = getNick();
+let charId = getCharId();
+async function ensurePlayerFromTelegramIfMissing() {
+  if (nick && charId) return;
+  // try Telegram WebApp user
+  try {
+    // use util from player.ts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tgUser = (await import("./player.js")).getTelegramUser();
+    if (tgUser && (tgUser.username || tgUser.first_name)) {
+      const username = (tgUser.username || tgUser.first_name || "player").toString();
+      (await import("./player.js")).setNick(username);
+      // default character if not selected
+      if (!(await import("./player.js")).getCharId()) (await import("./player.js")).setCharId("knight");
+      // try to fetch avatar via server proxy
+      try {
+        const resp = await fetch(`/api/user/${tgUser.id}`);
+        const j = await resp.json();
+        if (j && j.avatar) (await import("./player.js")).setAvatar(j.avatar);
+      } catch (e) {
+        // ignore
+      }
+      // reload local vars
+      nick = (await import("./player.js")).getNick();
+      charId = (await import("./player.js")).getCharId();
+      return;
+    }
+  } catch (e) {
+    // ignore
+  }
+  // nothing found — redirect to registration page
+  if (!nick || !charId) window.location.href = "index.html";
 }
+
+// run guard
+ensurePlayerFromTelegramIfMissing();
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 const playerAvatarEl = document.getElementById("playerAvatar") as HTMLElement;
