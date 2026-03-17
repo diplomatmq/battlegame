@@ -10,6 +10,35 @@ if (getNick() && getCharId()) {
   window.location.href = "menu.html";
 }
 
+// If opened inside Telegram WebApp with a logged user, auto-fill and go to menu
+(async function tryAutofillFromTelegram() {
+  try {
+    const tg = getTelegramUser();
+    if (!tg) return;
+    const username = tg.username || tg.first_name;
+    if (!username) return;
+
+    // set nick + default character
+    setNick(username);
+    if (!getCharId()) setCharId("knight");
+
+    // try to get avatar from server endpoint and save
+    if (tg.id) {
+      try {
+        const resp = await fetch(`/api/user/${tg.id}`);
+        const j = await resp.json();
+        if (j && j.avatar) setAvatar(j.avatar);
+        localStorage.setItem("tgUserId", String(tg.id));
+      } catch (e) { /* ignore */ }
+    }
+
+    // finally navigate to menu
+    window.location.href = "menu.html";
+  } catch (e) {
+    // ignore
+  }
+})();
+
 // ── DOM refs ────────────────────────────────────────────────────────────────
 const avatarFrame    = document.getElementById("avatarFrame")    as HTMLElement;
 const avatarFileInput = document.getElementById("avatarFileInput") as HTMLInputElement;
