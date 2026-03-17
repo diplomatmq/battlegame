@@ -15,13 +15,7 @@ const pool = new Pool({
 const telegramToken = process.env.TELEGRAM_TOKEN;
 const bot = new TelegramBot(telegramToken, { polling: false });
 
-bot.on('polling_error', (err) => {
-  console.error('Telegram polling_error', err);
-});
-
-// Configure Telegram updates delivery:
-// - If WEBHOOK_URL is provided, set webhook and expose POST /bot<token> to receive updates.
-// - Otherwise, try to start polling and log errors (handled by polling_error).
+// Only webhook mode: set webhook and expose POST /bot<TOKEN> endpoint
 const WEBHOOK_URL = process.env.WEBHOOK_URL || process.env.BASE_URL || process.env.SERVER_URL;
 if (WEBHOOK_URL) {
   const hookPath = `/bot${telegramToken}`;
@@ -42,14 +36,6 @@ if (WEBHOOK_URL) {
     }
     res.sendStatus(200);
   });
-} else {
-  // Fallback: attempt polling. This may fail if another instance is polling (409),
-  // but we'll catch and log errors without crashing.
-  try {
-    bot.startPolling();
-  } catch (e) {
-    console.error('Failed to start Telegram polling:', e && e.message ? e.message : e);
-  }
 }
 
 let waitingPlayer = null;
