@@ -32,10 +32,10 @@ io.on('connection', (socket) => {
 
 bot.on('message', (msg) => {
   if (msg.text === '/start' && msg.chat.type === 'private') {
-    bot.sendMessage(msg.chat.id, 'Открой игру:', {
+    bot.sendMessage(msg.chat.id, 'Открой меню игры:', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Открыть игру', web_app: { url: 'https://battlerealme.monkeysdynasty.website/game.html' } }]
+          [{ text: 'Открыть меню', web_app: { url: 'https://battlerealme.monkeysdynasty.website/menu.html' } }]
         ]
       }
     });
