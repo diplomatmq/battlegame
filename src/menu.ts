@@ -4,68 +4,131 @@ import { CHAR_META, getNick, getAvatar, getCharId, getCoins } from "./player.js"
 import { drawCharacterPreview } from "./fighter.js";
 
 // ── Guard / Telegram auto-fill ─────────────────────────────────────────────────
-let nick = getNick();
-let charId = getCharId();
+let nick: string | null = null;
+let charId: string | null = null;
+
 async function ensurePlayerFromTelegramIfMissing() {
+  nick = getNick();
+  charId = getCharId();
   if (nick && charId) return;
-  // try Telegram WebApp user
   try {
-    // use util from player.ts
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tgUser = (await import("./player.js")).getTelegramUser();
+    const { getTelegramUser, setNick, getCharId: _getCharId, setCharId, setAvatar } = await import("./player.js");
+    const tgUser = getTelegramUser();
     if (tgUser && (tgUser.username || tgUser.first_name)) {
       const username = (tgUser.username || tgUser.first_name || "player").toString();
-      (await import("./player.js")).setNick(username);
-      // default character if not selected
-      if (!(await import("./player.js")).getCharId()) (await import("./player.js")).setCharId("knight");
-      // try to fetch avatar via server proxy
+      setNick(username);
+      if (!_getCharId()) setCharId("knight");
+      // fetch avatar via server
       try {
         const resp = await fetch(`/api/user/${tgUser.id}`);
         const j = await resp.json();
-        if (j && j.avatar) (await import("./player.js")).setAvatar(j.avatar);
-      } catch (e) {
-        // ignore
-      }
-      // reload local vars
-      nick = (await import("./player.js")).getNick();
-      charId = (await import("./player.js")).getCharId();
+        if (j && j.avatar) setAvatar(j.avatar);
+      } catch (e) {}
+      // reload
+      nick = getNick();
+      charId = getCharId();
       return;
     }
   } catch (e) {
     // ignore
   }
   // nothing found — redirect to registration page
+  nick = getNick();
+  charId = getCharId();
   if (!nick || !charId) window.location.href = "index.html";
 }
 
-// run guard
-ensurePlayerFromTelegramIfMissing();
 
-// ── DOM refs ────────────────────────────────────────────────────────────────
-const playerAvatarEl = document.getElementById("playerAvatar") as HTMLElement;
-const playerNickEl   = document.getElementById("playerNick")   as HTMLElement;
-const coinCountEl    = document.getElementById("coinCount")    as HTMLElement;
-const arenaCanvas    = document.getElementById("arenaCanvas")  as HTMLCanvasElement;
-const bgCanvas       = document.getElementById("bgCanvas")     as HTMLCanvasElement;
-const flashEl        = document.getElementById("flash")        as HTMLElement | null;
+// We'll initialize DOM and populate after ensuring player data
+async function initMenuUI() {
+  const playerAvatarEl = document.getElementById("playerAvatar") as HTMLElement;
+  const playerNickEl   = document.getElementById("playerNick")   as HTMLElement;
+  const coinCountEl    = document.getElementById("coinCount")    as HTMLElement;
+  const arenaCanvas    = document.getElementById("arenaCanvas")  as HTMLCanvasElement;
+  const bgCanvas       = document.getElementById("bgCanvas")     as HTMLCanvasElement;
+  const flashEl        = document.getElementById("flash")        as HTMLElement | null;
 
-// ── Populate player info ───────────────────────────────────────────────────
-const meta   = CHAR_META[charId!];
-const avatar = getAvatar();
-const coins  = getCoins();
+  const meta   = CHAR_META[charId as any];
+  const avatar = getAvatar();
+  const coins  = getCoins();
 
-playerNickEl.textContent          = (nick ?? "\u0413\u0415\u0420\u041e\u0419").toUpperCase();
-coinCountEl.textContent           = String(coins);
-playerAvatarEl.style.borderColor  = meta.color;
+  playerNickEl.textContent          = (nick ?? "\u0413\u0415\u0420\u041e\u0419").toUpperCase();
+  coinCountEl.textContent           = String(coins);
+  playerAvatarEl.style.borderColor  = meta.color;
 
-if (avatar) {
-  playerAvatarEl.innerHTML =
-    `<img src="${avatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
-} else {
-  playerAvatarEl.textContent = (nick ?? "??").substring(0, 2).toUpperCase();
-  playerAvatarEl.style.color    = meta.color;
-  playerAvatarEl.style.fontSize = "12px";
+  if (avatar) {
+    playerAvatarEl.innerHTML =
+      `<img src="${avatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
+  } else {
+    playerAvatarEl.textContent = (nick ?? "??").substring(0, 2).toUpperCase();
+    playerAvatarEl.style.color    = meta.color;
+    playerAvatarEl.style.fontSize = "12px";
+  }
+
+  // Arena and background init (existing logic below)
+  const arCtx  = arenaCanvas.getContext("2d")!;
+  let gameTime = 0;
+
+  function resizeArena(): void {
+    arenaCanvas.width  = arenaCanvas.offsetWidth  || 400;
+    arenaCanvas.height = arenaCanvas.offsetHeight || 280;
+  }
+  resizeArena();
+  window.addEventListener("resize", resizeArena);
+
+  function drawArena(): void {
+    gameTime++;
+    const w  = arenaCanvas.width;
+    const h  = arenaCanvas.height;
+    const cx = w / 2;
+    const by = h - 18;
+
+    arCtx.clearRect(0, 0, w, h);
+    arCtx.fillStyle = "#111108";
+    arCtx.fillRect(0, h - 40, w, 40);
+    arCtx.shadowColor = "#8b6020"; arCtx.shadowBlur = 8;
+    arCtx.strokeStyle = "#6b4010"; arCtx.lineWidth = 3;
+    arCtx.beginPath(); arCtx.moveTo(0, h - 40); arCtx.lineTo(w, h - 40); arCtx.stroke();
+    arCtx.shadowBlur = 0;
+
+    const bob = Math.sin(gameTime * 0.04) * 5;
+    drawCharacterPreview(arCtx, cx, by, charId ?? "knight", meta.color, bob, gameTime);
+
+    requestAnimationFrame(drawArena);
+  }
+  drawArena();
+
+  (function startBg() {
+    if (!bgCanvas) return;
+    const ctx = bgCanvas.getContext("2d")!;
+    bgCanvas.width  = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+    window.addEventListener("resize", () => {
+      bgCanvas.width  = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+    });
+    const stars: { x: number; y: number; s: number; v: number }[] = [];
+    for (let i = 0; i < 100; i++) {
+      stars.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, s: Math.random() * 1.8 + 0.4, v: Math.random() * 0.25 + 0.08 });
+    }
+    function tick() {
+      ctx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      ctx.fillStyle = "#0e0a03";
+      ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+      for (const st of stars) {
+        ctx.fillStyle = `rgba(255,220,120,${0.25 + Math.random() * 0.2})`;
+        ctx.fillRect(st.x, st.y, st.s, st.s);
+        st.y += st.v;
+        if (st.y > bgCanvas.height) { st.y = 0; st.x = Math.random() * bgCanvas.width; }
+      }
+      requestAnimationFrame(tick);
+    }
+    tick();
+  })();
 }
+
+// Initialize: ensure player then init UI
+ensurePlayerFromTelegramIfMissing().then(() => initMenuUI());
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function navigate(url: string): void {
