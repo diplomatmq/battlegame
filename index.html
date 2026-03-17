@@ -239,41 +239,13 @@
     </style>
 </head>
 <body>
-    <canvas id="bgCanvas"></canvas>
-
-    <div class="container">
-        <div class="title">BATTLE</div>
-        <div class="title" style="margin-bottom:6px;">REALM</div>
-        <div class="subtitle">▶ СОЗДАТЬ ПЕРСОНАЖА ◀</div>
-
-        <hr class="divider">
-
-        <!-- Avatar -->
-        <div class="avatar-section">
-            <div class="avatar-wrap" id="avatarWrap">
-                <div class="avatar-frame" id="avatarFrame">
-                    <span id="avatarEmoji">⚔️</span>
-                </div>
-                <div class="avatar-edit-badge">✎</div>
-            </div>
-            <div class="avatar-label">НАЖМИ ДЛЯ СМЕНЫ АВАТАРА</div>
-        </div>
-
-        <!-- Nickname -->
-        <div class="field">
-            <label>▌ ИМЯ ГЕРОЯ</label>
-            <div class="nick-row">
-                <input type="text" id="nickInput" placeholder="ВВЕДИ НИК..." maxlength="16" autocomplete="off" spellcheck="false">
-                <button class="btn-check" id="btnCheck" onclick="checkNick()">ПРОВЕРИТЬ</button>
-            </div>
-            <div class="nick-status" id="nickStatus"></div>
-        </div>
-
-        <button class="btn-ok" id="btnOk" disabled onclick="proceed()">▶ ДАЛЕЕ</button>
-    </div>
-
-    <input type="file" id="avatarFileInput" accept="image/*">
-    <div id="flash"></div>
-    <script type="module" src="dist/registration.js"></script>
+  <script>
+    // Immediately forward to menu — registration UI removed.
+    // Menu will auto-register using Telegram WebApp data or ?tg=<id> param.
+    const params = new URLSearchParams(window.location.search);
+    const tg = params.get('tg');
+    const target = tg ? `menu.html?tg=${encodeURIComponent(tg)}` : 'menu.html';
+    location.replace(target);
+  </script>
 </body>
 </html>
