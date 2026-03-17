@@ -29,7 +29,6 @@ if (WEBHOOK_URL) {
   (async () => {
     try {
       await bot.setWebHook(hookUrl);
-      console.log('Telegram webhook set to', hookUrl);
     } catch (e) {
       console.error('Failed to set Telegram webhook', e && e.message ? e.message : e);
     }
@@ -48,7 +47,6 @@ if (WEBHOOK_URL) {
   // but we'll catch and log errors without crashing.
   try {
     bot.startPolling();
-    console.log('Telegram bot polling started (fallback).');
   } catch (e) {
     console.error('Failed to start Telegram polling:', e && e.message ? e.message : e);
   }
