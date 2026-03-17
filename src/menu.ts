@@ -11,6 +11,27 @@ async function ensurePlayerFromTelegramIfMissing() {
   nick = getNick();
   charId = getCharId();
   if (nick && charId) return;
+  // If URL contains ?tg=<id>, use that to auto-fill from server
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tgParam = params.get('tg');
+    if (tgParam) {
+      const { setNick, setCharId, setAvatar } = await import("./player.js");
+      try {
+        const resp = await fetch(`/api/user/${encodeURIComponent(tgParam)}`);
+        const j = await resp.json();
+        if (j && (j.username || j.avatar)) {
+          const username = j.username || (j.first_name || 'player');
+          setNick(username);
+          if (!getCharId()) setCharId('knight');
+          if (j.avatar) setAvatar(j.avatar);
+          nick = getNick();
+          charId = getCharId();
+          return;
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
   try {
     const { getTelegramUser, setNick, getCharId: _getCharId, setCharId, setAvatar } = await import("./player.js");
     const tgUser = getTelegramUser();

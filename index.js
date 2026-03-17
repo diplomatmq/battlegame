@@ -68,16 +68,20 @@ io.on('connection', (socket) => {
 });
 
 bot.on('message', (msg) => {
-  if (msg.text === '/start' && msg.chat.type === 'private') {
+  const base = process.env.WEB_APP_BASE_URL || process.env.WEBHOOK_URL || process.env.BASE_URL || 'https://battlerealme.monkeysdynasty.website';
+  const safeBase = base.replace(/\/$/, '');
+  if (msg.text === '/start' && msg.chat && msg.chat.type === 'private') {
+    const userId = msg.from && (msg.from.id || msg.from.user_id) ? (msg.from.id || msg.from.user_id) : null;
+    const url = userId ? `${safeBase}/menu.html?tg=${userId}` : `${safeBase}/menu.html`;
     bot.sendMessage(msg.chat.id, 'Открой меню игры:', {
       reply_markup: {
         inline_keyboard: [
-          [{ text: 'Открыть меню', web_app: { url: 'https://battlerealme.monkeysdynasty.website/menu.html' } }]
+          [{ text: 'Открыть меню', web_app: { url } }]
         ]
       }
-    });
+    }).catch(() => {});
   } else {
-    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!');
+    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!').catch(() => {});
   }
 });
 
