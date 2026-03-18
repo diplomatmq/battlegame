@@ -40,6 +40,23 @@ if (WEBHOOK_URL) {
   });
 }
 
+// Установка webhook при запуске сервера (гарантированно)
+(async () => {
+  try {
+    const WEBHOOK_URL = process.env.WEBHOOK_URL || process.env.BASE_URL || process.env.SERVER_URL;
+    if (WEBHOOK_URL && telegramToken) {
+      const hookPath = `/bot${telegramToken}`;
+      const hookUrl = `${WEBHOOK_URL.replace(/\/$/, '')}${hookPath}`;
+      await bot.setWebHook(hookUrl);
+      console.log('Telegram webhook set:', hookUrl);
+    } else {
+      console.error('WEBHOOK_URL or TELEGRAM_TOKEN not set');
+    }
+  } catch (e) {
+    console.error('Failed to set Telegram webhook (forced):', e && e.message ? e.message : e);
+  }
+})();
+
 let waitingPlayer = null;
 
 io.on('connection', (socket) => {
