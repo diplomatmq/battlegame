@@ -72,11 +72,19 @@ io.on('connection', (socket) => {
   });
 });
 
-bot.on('message', (msg) => {
+// Пример использования регистрации пользователя при получении /start
+bot.on('message', async (msg) => {
   const base = process.env.WEB_APP_BASE_URL || process.env.WEBHOOK_URL || process.env.BASE_URL || 'https://battlerealme.monkeysdynasty.website';
   const safeBase = base.replace(/\/$/, '');
   if (msg.text === '/start' && msg.chat && msg.chat.type === 'private') {
     const userId = msg.from && (msg.from.id || msg.from.user_id) ? (msg.from.id || msg.from.user_id) : null;
+    const username = msg.from && (msg.from.username || msg.from.first_name) ? (msg.from.username || msg.from.first_name) : 'player';
+    if (userId) {
+      // Регистрируем пользователя в базе
+      const dbId = await registerPlayer(String(userId), username);
+      // Можно добавить персонажа после выбора (пример ниже)
+      // await addUserCharacter(dbId, 'knight', 'human');
+    }
     const url = userId ? `${safeBase}/menu.html?tg=${userId}` : `${safeBase}/menu.html`;
     bot.sendMessage(msg.chat.id, 'Открой меню игры:', {
       reply_markup: {
@@ -153,6 +161,33 @@ async function runMigrations() {
     console.error('Migration error:', e.message);
   }
 }
+
+// Добавить запись пользователя в players при первом входе
+async function registerPlayer(telegram_id, username) {
+  try {
+    const res = await pool.query(
+      'INSERT INTO players (telegram_id, username) VALUES ($1, $2) ON CONFLICT (telegram_id) DO NOTHING RETURNING id',
+      [telegram_id, username]
+    );
+    return res.rows[0]?.id;
+  } catch (e) {
+    console.error('DB registerPlayer error:', e.message);
+    return null;
+  }
+}
+
+// Добавить запись персонажа для пользователя
+async function addUserCharacter(user_id, character_id, faction) {
+  try {
+    await pool.query(
+      'INSERT INTO user_characters (user_id, character_id, faction) VALUES ($1, $2, $3)',
+      [user_id, character_id, faction]
+    );
+  } catch (e) {
+    console.error('DB addUserCharacter error:', e.message);
+  }
+}
+
 
 // Проверка и вывод переменных окружения для диагностики
 console.log('ENV TELEGRAM_TOKEN:', process.env.TELEGRAM_TOKEN);

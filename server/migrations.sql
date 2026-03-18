@@ -13,3 +13,12 @@ CREATE TABLE games (
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(32)
 );
+
+-- Таблица для связи пользователя с персонажами и фракциями
+CREATE TABLE IF NOT EXISTS user_characters (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES players(id),
+    character_id VARCHAR(64),
+    faction VARCHAR(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
