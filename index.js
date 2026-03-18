@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const TelegramBot = require('node-telegram-bot-api');
 const { Pool } = require('pg');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -121,3 +122,18 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
+
+async function runMigrations() {
+  // Read migrations.sql
+  const sql = fs.readFileSync(__dirname + '/server/migrations.sql', 'utf8');
+  // Replace CREATE TABLE with CREATE TABLE IF NOT EXISTS
+  const safeSql = sql.replace(/CREATE TABLE /g, 'CREATE TABLE IF NOT EXISTS ');
+  try {
+    await pool.query(safeSql);
+    console.log('Database migrations applied');
+  } catch (e) {
+    console.error('Migration error:', e.message);
+  }
+}
+
+runMigrations();

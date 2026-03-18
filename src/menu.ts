@@ -11,6 +11,11 @@ async function ensurePlayerFromTelegramIfMissing() {
   nick = getNick();
   charId = getCharId();
   if (nick && charId) return;
+  // Если ник есть, но герой не выбран — сразу переход на выбор героя
+  if (nick && !charId) {
+    window.location.href = "character.html";
+    return;
+  }
   // If URL contains ?tg=<id>, use that to auto-fill from server
   try {
     const params = new URLSearchParams(window.location.search);
@@ -23,7 +28,12 @@ async function ensurePlayerFromTelegramIfMissing() {
         if (j && (j.username || j.avatar)) {
           const username = j.username || (j.first_name || 'player');
           setNick(username);
-          if (!getCharId()) setCharId('knight');
+          if (!getCharId()) {
+            // Не выбран герой — переход на character.html
+            if (j.avatar) setAvatar(j.avatar);
+            window.location.href = "character.html";
+            return;
+          }
           if (j.avatar) setAvatar(j.avatar);
           nick = getNick();
           charId = getCharId();
@@ -38,7 +48,16 @@ async function ensurePlayerFromTelegramIfMissing() {
     if (tgUser && (tgUser.username || tgUser.first_name)) {
       const username = (tgUser.username || tgUser.first_name || "player").toString();
       setNick(username);
-      if (!_getCharId()) setCharId("knight");
+      if (!_getCharId()) {
+        // Не выбран герой — переход на character.html
+        try {
+          const resp = await fetch(`/api/user/${tgUser.id}`);
+          const j = await resp.json();
+          if (j && j.avatar) setAvatar(j.avatar);
+        } catch (e) {}
+        window.location.href = "character.html";
+        return;
+      }
       // fetch avatar via server
       try {
         const resp = await fetch(`/api/user/${tgUser.id}`);
