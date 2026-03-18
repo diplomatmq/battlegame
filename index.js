@@ -154,4 +154,11 @@ async function runMigrations() {
   }
 }
 
+// Проверка и вывод переменных окружения для диагностики
+console.log('ENV TELEGRAM_TOKEN:', process.env.TELEGRAM_TOKEN);
+console.log('ENV WEBHOOK_URL:', process.env.WEBHOOK_URL);
+console.log('ENV BASE_URL:', process.env.BASE_URL);
+console.log('ENV SERVER_URL:', process.env.SERVER_URL);
+console.log('ENV DATABASE_URL:', process.env.DATABASE_URL);
+
 runMigrations();
