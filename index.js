@@ -87,14 +87,15 @@ bot.on('message', async (msg) => {
     }
     const url = userId ? `${safeBase}/menu.html?tg=${userId}` : `${safeBase}/menu.html`;
     bot.sendMessage(msg.chat.id, 'Открой меню игры:', {
-      reply_markup: {
+      reply_markup:
+      {
         inline_keyboard: [
           [{ text: 'Открыть меню', web_app: { url } }]
         ]
       }
-    }).catch(() => {});
+    }).catch(() => { });
   } else {
-    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!').catch(() => {});
+    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!').catch(() => { });
   }
 });
 
@@ -152,14 +153,17 @@ server.listen(PORT, () => {
 async function runMigrations() {
   // Read migrations.sql
   const sql = fs.readFileSync(__dirname + '/server/migrations.sql', 'utf8');
-  // Replace CREATE TABLE with CREATE TABLE IF NOT EXISTS
-  const safeSql = sql.replace(/CREATE TABLE /g, 'CREATE TABLE IF NOT EXISTS ');
-  try {
-    await pool.query(safeSql);
-    console.log('Database migrations applied');
-  } catch (e) {
-    console.error('Migration error:', e.message);
+  // Разделить на отдельные команды
+  const statements = sql.split(/;\s*\n/).filter(s => s.trim());
+  for (const stmt of statements) {
+    const safeStmt = stmt.replace(/CREATE TABLE /g, 'CREATE TABLE IF NOT EXISTS ');
+    try {
+      await pool.query(safeStmt);
+    } catch (e) {
+      console.error('Migration error:', e.message, '\nSQL:', safeStmt);
+    }
   }
+  console.log('Database migrations applied');
 }
 
 // Добавить запись пользователя в players при первом входе
