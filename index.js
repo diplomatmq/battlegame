@@ -31,6 +31,7 @@ if (WEBHOOK_URL) {
 
   app.post(hookPath, express.json(), (req, res) => {
     try {
+      console.log('Webhook received:', JSON.stringify(req.body)); // Логируем входящий webhook
       bot.processUpdate(req.body);
     } catch (e) {
       console.error('Error processing Telegram update via webhook', e);
