@@ -227,8 +227,8 @@ async function runMigrations() {
   const statements = sql.split(/;\s*\n/).filter(s => s.trim());
   for (const stmt of statements) {
     let safeStmt = stmt.trim();
-    if (safeStmt.startsWith('CREATE TABLE') && !safeStmt.includes('IF NOT EXISTS')) {
-      safeStmt = safeStmt.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS');
+    if (/CREATE TABLE\s+(?!IF NOT EXISTS)/i.test(safeStmt)) {
+      safeStmt = safeStmt.replace(/CREATE TABLE\s+/i, "CREATE TABLE IF NOT EXISTS ");
     }
     try {
       await pool.query(safeStmt);

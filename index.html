@@ -6,6 +6,12 @@
     <title>Battle Realm</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+      }
+    </script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
 
