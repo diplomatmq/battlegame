@@ -4,29 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Battle Realm</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script>
-      if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-      }
-    </script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
-        body { background-color: #0e0a03; color: #FFDC78; font-family: 'Press Start 2P', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+        iframe { width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
-  <h2>Загрузка...</h2>
+  <!-- Данный фрейм нужен, чтобы переходы по страницам внутри игры не вызывали перезагрузку приложения в Telegram (бесконечный цикл) -->
+  <iframe id="gameFrame" src="" allow="fullscreen"></iframe>
   <script>
-    setTimeout(() => {
-        const params = new URLSearchParams(window.location.search);
-        const tg = params.get('tg');
-        if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
-            window.location.href = tg ? `menu.html?tg=${encodeURIComponent(tg)}` : 'menu.html';
-        }
-    }, 500); // 500ms delay to allow telegram ready() to settle preventing loop
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
+    const params = new URLSearchParams(window.location.search);
+    const tg = params.get('tg');
+    const startPage = params.get('page') || 'menu.html';
+    const url = tg ? `${startPage}?tg=${encodeURIComponent(tg)}` : startPage;
+    
+    // Передаем window.location.hash внутрь фрейма, чтобы Telegram SDK инициализировался
+    document.getElementById('gameFrame').src = url + window.location.hash;
   </script>
 </body>
 </html>

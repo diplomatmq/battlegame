@@ -115,8 +115,8 @@ bot.on('message', async (msg) => {
       }
     }
 
-    const targetPage = hasCharacter ? 'index.html' : 'character.html';
-    const url = userId ? `${safeBase}/${targetPage}?tg=${userId}` : `${safeBase}/${targetPage}`;
+    const targetPage = hasCharacter ? 'menu.html' : 'character.html';
+    const url = userId ? `${safeBase}/index.html?page=${targetPage}&tg=${userId}` : `${safeBase}/index.html?page=${targetPage}`;
     const text = 'Добро пожаловать в Battle Realm! Нажми "Играть", чтобы войти в игру.';
 
     bot.sendMessage(msg.chat.id, text, {
@@ -131,14 +131,9 @@ bot.on('message', async (msg) => {
   }
 });
 
-// Если запрашивают исходную страницу - отдаем меню (или текст)
+// Если запрашивают исходную страницу - отдаем текст
 app.get('/', (req, res) => {
-  res.send('Game server is running');
-});
-
-// ПРЯМО отдаем содержимое menu.html при запросе index.html, чтобы избежать редиректов (location.replace), которые зацикливают Telegram WebApp
-app.get('/index.html', (req, res) => {
-  res.sendFile(__dirname + '/menu.html');
+  res.sendFile(__dirname + '/index.html');
 });
 
 app.use(express.json());
