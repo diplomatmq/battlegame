@@ -60,42 +60,74 @@ if (WEBHOOK_URL) {
 let waitingPlayer = null;
 
 io.on('connection', (socket) => {
-  socket.on('play', () => {
-    if (waitingPlayer) {
-      io.to(waitingPlayer).emit('startGame', { opponent: socket.id });
-      socket.emit('startGame', { opponent: waitingPlayer });
+  let currentProfile = null;
+
+  socket.on('play', (profile) => {
+    currentProfile = profile; // { name, avatar, charType, stats }
+    if (waitingPlayer && waitingPlayer.id !== socket.id) {
+      const oppSocket = waitingPlayer;
+      const seed = Math.floor(Math.random() * 1000000); // shared seed for match
+      
+      // Notify both players
+      io.to(oppSocket.id).emit('startGame', { 
+        opponent: socket.id, 
+        profile: currentProfile,
+        seed
+      });
+      socket.emit('startGame', { 
+        opponent: oppSocket.id, 
+        profile: oppSocket.profile,
+        seed
+      });
+      
       waitingPlayer = null;
     } else {
-      waitingPlayer = socket.id;
+      waitingPlayer = socket;
+      waitingPlayer.profile = profile;
       socket.emit('waiting');
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (waitingPlayer && waitingPlayer.id === socket.id) {
+      waitingPlayer = null;
     }
   });
 });
 
-// Пример использования регистрации пользователя при получении /start
 bot.on('message', async (msg) => {
   const base = process.env.WEB_APP_BASE_URL || process.env.WEBHOOK_URL || process.env.BASE_URL || 'https://battlerealme.monkeysdynasty.website';
   const safeBase = base.replace(/\/$/, '');
   if (msg.text === '/start' && msg.chat && msg.chat.type === 'private') {
     const userId = msg.from && (msg.from.id || msg.from.user_id) ? (msg.from.id || msg.from.user_id) : null;
     const username = msg.from && (msg.from.username || msg.from.first_name) ? (msg.from.username || msg.from.first_name) : 'player';
+    
+    let hasCharacter = false;
     if (userId) {
       // Регистрируем пользователя в базе
-      const dbId = await registerPlayer(String(userId), username);
-      // Можно добавить персонажа после выбора (пример ниже)
-      // await addUserCharacter(dbId, 'knight', 'human');
+      await registerPlayer(String(userId), username);
+      
+      try {
+        const charRes = await pool.query('SELECT * FROM user_characters WHERE user_id = (SELECT id FROM players WHERE telegram_id = $1) LIMIT 1', [String(userId)]);
+        hasCharacter = charRes.rowCount > 0;
+      } catch (e) {
+        console.error('Error checking user characters:', e.message);
+      }
     }
-    const url = userId ? `${safeBase}/menu.html?tg=${userId}` : `${safeBase}/menu.html`;
-    bot.sendMessage(msg.chat.id, 'Открой меню игры:', {
-      reply_markup:
-      {
+
+    const targetPage = hasCharacter ? 'index.html' : 'character.html';
+    const url = userId ? `${safeBase}/${targetPage}?tg=${userId}` : `${safeBase}/${targetPage}`;
+    const text = 'Добро пожаловать в Battle Realm! Нажми "Играть", чтобы войти в игру.';
+
+    bot.sendMessage(msg.chat.id, text, {
+      reply_markup: {
         inline_keyboard: [
-          [{ text: 'Открыть меню', web_app: { url } }]
+          [{ text: 'Играть', web_app: { url } }]
         ]
       }
     }).catch(() => { });
   } else {
-    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру!').catch(() => { });
+    bot.sendMessage(msg.chat.id, 'Добро пожаловать в игру! Введи /start для входа.').catch(() => { });
   }
 });
 
@@ -110,6 +142,32 @@ app.post('/telegram', async (req, res) => {
     await bot.sendMessage(chatId, text);
     res.json({ ok: true });
   } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Endpoint for the webapp to save the character to database
+app.post('/api/character', async (req, res) => {
+  const { telegram_id, character_id, faction } = req.body;
+  try {
+    // Получаем ID пользователя
+    const userRes = await pool.query('SELECT id FROM players WHERE telegram_id = $1', [telegram_id]);
+    if (userRes.rowCount === 0) {
+      return res.status(404).json({ ok: false, error: 'User not found' });
+    }
+    const userId = userRes.rows[0].id;
+    
+    // Проверяем, есть ли уже персонаж
+    const checkRes = await pool.query('SELECT id FROM user_characters WHERE user_id = $1', [userId]);
+    if (checkRes.rowCount > 0) {
+      // Уже есть
+      return res.json({ ok: true, message: 'Character already selected' });
+    }
+    
+    await addUserCharacter(userId, character_id, faction || 'human');
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('API /api/character error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -136,8 +194,20 @@ app.get('/api/user/:id', async (req, res) => {
       // ignore profile photo errors
     }
 
+    // Checking if user has a character in our DB
+    let charId = null;
+    try {
+      const charRes = await pool.query(
+        'SELECT character_id FROM user_characters uc JOIN players p ON p.id = uc.user_id WHERE p.telegram_id = $1 LIMIT 1',
+        [String(userId)]
+      );
+      if (charRes.rowCount > 0) {
+        charId = charRes.rows[0].character_id;
+      }
+    } catch (e) { }
+
     const username = (chat && (chat.username || chat.first_name)) || null;
-    res.json({ ok: true, id: userId, username, avatar });
+    res.json({ ok: true, id: userId, username, avatar, charId });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

@@ -62,10 +62,43 @@ function selectChar(id: CharId): void {
   btnConfirm.style.boxShadow   = `0 0 16px ${meta.color}`;
 }
 
-function confirmSelect(): void {
+async function confirmSelect(): Promise<void> {
   if (!selectedId) return;
   setCharId(selectedId);
   setCoins(100); // starter coins
+
+  try {
+    const { getTelegramUser } = await import("./player.js");
+    const tgUser = getTelegramUser();
+    // Попытка сохранить на сервере, если есть id Telegram
+    if (tgUser && tgUser.id) {
+      await fetch('/api/character', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          telegram_id: String(tgUser.id),
+          character_id: selectedId,
+          faction: 'human' // дефолт
+        })
+      });
+    } else {
+      // Иначе пробуем достать из параметров (если tg= передано в URL)
+      const params = new URLSearchParams(window.location.search);
+      const tgParam = params.get('tg');
+      if (tgParam) {
+        await fetch('/api/character', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            telegram_id: tgParam, 
+            character_id: selectedId,
+            faction: 'human'
+          })
+        });
+      }
+    }
+  } catch(e) { /* ignore backend errors and proceed locally */ }
+
   if (flashEl) {
     flashEl.style.opacity = "1";
     setTimeout(() => { window.location.href = "menu.html"; }, 300);

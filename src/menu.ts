@@ -3,6 +3,23 @@
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
 
+// ── Navigation ──────────────────────────────────────────────────────────────
+function navigate(url: string): void {
+  const flash = document.getElementById("flash");
+  if (flash) {
+    flash.style.opacity = "1";
+    setTimeout(() => { window.location.href = url; }, 280);
+  } else {
+    window.location.href = url;
+  }
+}
+function goPlay():       void { navigate("game.html");       }
+function goShop():       void { navigate("shop.html");       }
+function goChallenges(): void { navigate("challenges.html"); }
+(window as unknown as Record<string, unknown>)["goPlay"]       = goPlay;
+(window as unknown as Record<string, unknown>)["goShop"]       = goShop;
+(window as unknown as Record<string, unknown>)["goChallenges"] = goChallenges;
+
 // ── Guard / Telegram auto-fill ─────────────────────────────────────────────────
 let nick: string | null = null;
 let charId: string | null = null;
@@ -28,13 +45,13 @@ async function ensurePlayerFromTelegramIfMissing() {
         if (j && (j.username || j.avatar)) {
           const username = j.username || (j.first_name || 'player');
           setNick(username);
+          if (j.charId) setCharId(j.charId);
+          if (j.avatar) setAvatar(j.avatar);
+          
           if (!getCharId()) {
-            // Не выбран герой — переход на character.html
-            if (j.avatar) setAvatar(j.avatar);
-            window.location.href = "character.html";
+            window.location.href = "character.html?tg=" + encodeURIComponent(tgParam);
             return;
           }
-          if (j.avatar) setAvatar(j.avatar);
           nick = getNick();
           charId = getCharId();
           return;
@@ -42,39 +59,38 @@ async function ensurePlayerFromTelegramIfMissing() {
       } catch (e) {}
     }
   } catch (e) {}
+  
   try {
     const { getTelegramUser, setNick, getCharId: _getCharId, setCharId, setAvatar } = await import("./player.js");
     const tgUser = getTelegramUser();
-    if (tgUser && (tgUser.username || tgUser.first_name)) {
+    if (tgUser && (tgUser.username || tgUser.first_name || tgUser.id)) {
       const username = (tgUser.username || tgUser.first_name || "player").toString();
       setNick(username);
-      if (!_getCharId()) {
-        // Не выбран герой — переход на character.html
-        try {
-          const resp = await fetch(`/api/user/${tgUser.id}`);
-          const j = await resp.json();
-          if (j && j.avatar) setAvatar(j.avatar);
-        } catch (e) {}
-        window.location.href = "character.html";
-        return;
-      }
-      // fetch avatar via server
       try {
         const resp = await fetch(`/api/user/${tgUser.id}`);
         const j = await resp.json();
         if (j && j.avatar) setAvatar(j.avatar);
+        if (j && j.charId) setCharId(j.charId);
       } catch (e) {}
-      // reload
+      
+      if (!_getCharId()) {
+        window.location.href = `character.html?tg=${tgUser.id}`;
+        return;
+      }
+      
       nick = getNick();
       charId = getCharId();
       return;
     }
-  } catch (e) {
-    // ignore
-  }
-  // nothing found — leave user on menu so they can register manually
+  } catch (e) {}
+  
+  // nothing found — but ensuring we don't crash
   nick = getNick();
   charId = getCharId();
+  if (!charId) {
+    window.location.href = "character.html";
+    return;
+  }
 }
 
 
@@ -169,21 +185,5 @@ async function initMenuUI() {
 // Initialize: ensure player then init UI
 ensurePlayerFromTelegramIfMissing().then(() => initMenuUI());
 
-// ── Navigation ──────────────────────────────────────────────────────────────
-function navigate(url: string): void {
-  const flash = document.getElementById("flash");
-  if (flash) {
-    flash.style.opacity = "1";
-    setTimeout(() => { window.location.href = url; }, 280);
-  } else {
-    window.location.href = url;
-  }
-}
-
-function goPlay():       void { navigate("game.html");       }
-function goShop():       void { navigate("shop.html");       }
-function goChallenges(): void { navigate("challenges.html"); }
-
-(window as unknown as Record<string, unknown>)["goPlay"]       = goPlay;
-(window as unknown as Record<string, unknown>)["goShop"]       = goShop;
-(window as unknown as Record<string, unknown>)["goChallenges"] = goChallenges;
+// Initialize: ensure player then init UI
+ensurePlayerFromTelegramIfMissing().then(() => initMenuUI());
