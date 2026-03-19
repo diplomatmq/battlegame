@@ -24,14 +24,14 @@ function goChallenges(): void { navigate("challenges.html"); }
 let nick: string | null = null;
 let charId: string | null = null;
 
-async function ensurePlayerFromTelegramIfMissing() {
+async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
   nick = getNick();
   charId = getCharId();
-  if (nick && charId) return;
+  if (nick && charId) return true;
   // Если ник есть, но герой не выбран — сразу переход на выбор героя
   if (nick && !charId) {
     window.location.href = "character.html";
-    return;
+    return false;
   }
   // If URL contains ?tg=<id>, use that to auto-fill from server
   try {
@@ -45,16 +45,20 @@ async function ensurePlayerFromTelegramIfMissing() {
         if (j && (j.username || j.avatar)) {
           const username = j.username || (j.first_name || 'player');
           setNick(username);
-          if (j.charId) setCharId(j.charId);
+          if (j.charId) {
+            setCharId(j.charId);
+          }
           if (j.avatar) setAvatar(j.avatar);
           
           if (!getCharId()) {
-            window.location.href = "character.html?tg=" + encodeURIComponent(tgParam);
-            return;
+            if (!window.location.pathname.endsWith('character.html')) {
+              window.location.href = "character.html?tg=" + encodeURIComponent(tgParam);
+            }
+            return false;
           }
           nick = getNick();
           charId = getCharId();
-          return;
+          return true;
         }
       } catch (e) {}
     }
@@ -75,12 +79,12 @@ async function ensurePlayerFromTelegramIfMissing() {
       
       if (!_getCharId()) {
         window.location.href = `character.html?tg=${tgUser.id}`;
-        return;
+        return false;
       }
       
       nick = getNick();
       charId = getCharId();
-      return;
+      return true;
     }
   } catch (e) {}
   
@@ -88,9 +92,11 @@ async function ensurePlayerFromTelegramIfMissing() {
   nick = getNick();
   charId = getCharId();
   if (!charId) {
+    if (window.location.pathname.endsWith('character.html')) return false;
     window.location.href = "character.html";
-    return;
+    return false;
   }
+  return true;
 }
 
 
@@ -183,7 +189,6 @@ async function initMenuUI() {
 }
 
 // Initialize: ensure player then init UI
-ensurePlayerFromTelegramIfMissing().then(() => initMenuUI());
-
-// Initialize: ensure player then init UI
-ensurePlayerFromTelegramIfMissing().then(() => initMenuUI());
+ensurePlayerFromTelegramIfMissing().then((shouldInit) => {
+  if (shouldInit) initMenuUI();
+});
