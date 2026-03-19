@@ -131,8 +131,14 @@ bot.on('message', async (msg) => {
   }
 });
 
+// Если запрашивают исходную страницу - отдаем меню (или текст)
 app.get('/', (req, res) => {
   res.send('Game server is running');
+});
+
+// ПРЯМО отдаем содержимое menu.html при запросе index.html, чтобы избежать редиректов (location.replace), которые зацикливают Telegram WebApp
+app.get('/index.html', (req, res) => {
+  res.sendFile(__dirname + '/menu.html');
 });
 
 app.use(express.json());
