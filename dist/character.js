@@ -2,9 +2,11 @@
 import { CHAR_META, setCharId, setCoins } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
 const bgCanvas = document.getElementById("bgCanvas");
+const viewport = document.getElementById("cardsViewport");
 const cardsContainer = document.getElementById("cardsContainer");
 const btnConfirm = document.getElementById("btnConfirm");
 const flashEl = document.getElementById("flash");
+const bgOverlay = document.getElementById("bgOverlay");
 let selectedId = null;
 // ── Build character cards ─────────────────────────────────────────────────────
 const charIds = ["knight", "killer", "mage", "necro", "berserker", "troll"];
@@ -13,44 +15,74 @@ charIds.forEach(id => {
     const card = document.createElement("div");
     card.className = "char-card";
     card.id = `card-${id}`;
+    card.dataset.id = id;
     // Canvas preview
     const cvs = document.createElement("canvas");
-    cvs.width = 120;
-    cvs.height = 180;
+    cvs.width = 160;
+    cvs.height = 240;
     {
         const pctx = cvs.getContext("2d");
         pctx.clearRect(0, 0, cvs.width, cvs.height);
-        drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 10, id, meta.color, 0, 0);
+        drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 20, id, meta.color, 0, 0);
     }
-    // Name label (encode Cyrillic in meta.name via the unicode escapes already in player.ts)
+    const infoBox = document.createElement("div");
+    infoBox.className = "char-info-box";
     const nameEl = document.createElement("div");
     nameEl.className = "char-name";
     nameEl.textContent = meta.name;
-    nameEl.style.color = meta.color;
-    // Stat bar
     const statEl = document.createElement("div");
     statEl.className = "char-stats";
-    statEl.innerHTML =
-        `<div>\u2665 ${meta.maxHp} HP</div>`;
+    statEl.textContent = `\u2665 ${meta.maxHp} HP \u2022 \u2694\ufe0f ${meta.weapon.toUpperCase()}`;
+    infoBox.appendChild(nameEl);
+    infoBox.appendChild(statEl);
     card.appendChild(cvs);
-    card.appendChild(nameEl);
-    card.appendChild(statEl);
-    card.addEventListener("click", () => selectChar(id));
-    cardsContainer?.appendChild(card);
-});
-function selectChar(id) {
-    selectedId = id;
-    charIds.forEach(cid => {
-        const el = document.getElementById(`card-${cid}`);
-        if (el)
-            el.classList.toggle("selected", cid === id);
+    card.appendChild(infoBox);
+    card.addEventListener("click", () => {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
-    btnConfirm.disabled = false;
-    const meta = CHAR_META[id];
-    btnConfirm.style.borderColor = meta.color;
-    btnConfirm.style.color = meta.color;
-    btnConfirm.style.boxShadow = `0 0 16px ${meta.color}`;
+    cardsContainer.appendChild(card);
+});
+// ── Theme & Scroll Logic ──────────────────────────────────────────────────────
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `${r}, ${g}, ${b}`;
 }
+function updateActiveTheme() {
+    const viewportRect = viewport.getBoundingClientRect();
+    const centerX = viewportRect.left + viewportRect.width / 2;
+    let closestCard = null;
+    let minDistance = Infinity;
+    const cards = Array.from(cardsContainer.children);
+    for (const card of cards) {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.left + rect.width / 2;
+        const distance = Math.abs(centerX - cardCenter);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestCard = card;
+        }
+        card.classList.remove("active");
+    }
+    if (closestCard) {
+        closestCard.classList.add("active");
+        const id = closestCard.dataset.id;
+        if (selectedId !== id) {
+            selectedId = id;
+            const meta = CHAR_META[id];
+            const rgb = hexToRgb(meta.color);
+            document.body.style.setProperty("--char-color", meta.color);
+            document.body.style.setProperty("--char-rgb", rgb);
+            btnConfirm.disabled = false;
+        }
+    }
+}
+viewport.addEventListener("scroll", () => {
+    requestAnimationFrame(updateActiveTheme);
+}, { passive: true });
+// Initial call
+setTimeout(updateActiveTheme, 100);
 async function confirmSelect() {
     if (!selectedId)
         return;
@@ -97,6 +129,7 @@ async function confirmSelect() {
         }, 300);
     }
     else {
+        console.log("Character: Selection confirmed (no flash), redirecting to menu.html");
         window.location.replace("menu.html");
     }
 }

@@ -16,7 +16,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            background: linear-gradient(145deg, #0a0e1a 0%, #141a2e 50%, #0d1220 100%);
+            background: #000;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -24,10 +24,20 @@
             justify-content: flex-start;
             font-family: 'Inter', sans-serif;
             color: #e0e8ff;
-            overflow-x: hidden;
-            overflow-y: auto;
-            padding: 20px 12px 40px;
+            overflow: hidden;
+            padding: 0;
             position: relative;
+            transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Dynamic background layer */
+        #bgOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0.15;
+            background: radial-gradient(circle at 50% 50%, var(--char-color, #ba55ff) 0%, transparent 70%);
+            transition: background 0.8s ease;
         }
 
         body::before {
@@ -128,59 +138,51 @@
 
         .char-name {
             font-family: 'Orbitron', sans-serif;
-            font-size: 9px;
-            font-weight: 700;
-            color: var(--char-color);
-            text-shadow: 0 0 12px rgba(var(--char-rgb), 0.5);
-            margin: 8px 0 2px;
-            text-align: center;
-            letter-spacing: 1px;
-            position: relative;
-            z-index: 1;
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
         }
 
         .char-stats {
-            font-size: 10px;
-            color: rgba(255,255,255,0.35);
-            text-align: center;
-            font-weight: 500;
-            position: relative;
-            z-index: 1;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            font-weight: 600;
+            letter-spacing: 1px;
         }
 
         /* Confirm button */
         .btn-confirm {
-            position: relative;
-            z-index: 1;
-            margin-top: 28px;
-            background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(186,85,255,0.15));
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(0,229,255,0.3);
-            border-radius: 16px;
-            color: #fff;
+            position: fixed;
+            bottom: 40px;
+            z-index: 20;
+            background: var(--char-color, #ba55ff);
+            border: none;
+            border-radius: 20px;
+            color: #000;
             font-family: 'Orbitron', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            padding: 14px 50px;
+            font-size: 15px;
+            font-weight: 900;
+            padding: 18px 60px;
             cursor: pointer;
             letter-spacing: 4px;
-            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-            box-shadow: 0 0 20px rgba(0,229,255,0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(var(--char-rgb), 0.3);
+            text-transform: uppercase;
         }
 
-        .btn-confirm:not(:disabled):hover {
-            background: linear-gradient(135deg, rgba(0,229,255,0.25), rgba(186,85,255,0.25));
-            box-shadow: 0 0 40px rgba(0,229,255,0.2);
-            transform: translateY(-2px);
+        .btn-confirm:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 15px 40px rgba(var(--char-rgb), 0.4);
+            background: #fff;
         }
-        .btn-confirm:not(:disabled):active {
-            transform: translateY(1px);
-            box-shadow: none;
-        }
+        .btn-confirm:active { transform: translateY(0); }
         .btn-confirm:disabled {
-            opacity: 0.25;
+            opacity: 0.3;
+            filter: grayscale(1);
             cursor: not-allowed;
+            transform: none !important;
         }
 
         #flash {
@@ -192,20 +194,24 @@
     </style>
 </head>
 <body>
+    <div id="bgOverlay"></div>
     <canvas id="bgCanvas"></canvas>
 
     <div class="header">
-        <h1>ВЫБОР ГЕРОЯ</h1>
-        <p>ВЫБЕРИ СВОЕГО ПЕРВОГО БОЙЦА</p>
+        <h1>BATTLE REALM</h1>
+        <p>ВЫБЕРИ СВОЕГО ГЕРОЯ</p>
     </div>
 
-    <div class="cards" id="cardsContainer"></div>
+    <!-- Carousel Viewport -->
+    <div class="cards-viewport" id="cardsViewport">
+        <div class="cards-inner" id="cardsContainer"></div>
+    </div>
 
     <button class="btn-confirm" id="btnConfirm" disabled onclick="confirmSelect()">
         ▶ ВЫБРАТЬ
     </button>
 
     <div id="flash"></div>
-    <script type="module" src="dist/character.js?v=20260320-v1"></script>
+    <script type="module" src="dist/character.js?v=20260320-v2"></script>
 </body>
 </html>
