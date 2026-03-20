@@ -67,6 +67,11 @@ export interface ShopItemDef {
   id:            string;
   name:          string;
   icon:          string;
+  /*
+    - [/] Redesign Main Menu for Hero Focus
+    - [/] Update `menu.html` layout and styles
+    - [/] Update `src/menu.ts` for larger character rendering
+  */
   price:         number;
   slot:          ItemSlot;
   bonus:         { atk: number; def: number; spd: number };

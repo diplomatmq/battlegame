@@ -114,6 +114,15 @@ async function initMenuUI() {
     const meta = CHAR_META[charId];
     const avatar = getAvatar();
     const coins = getCoins();
+    // Apply dynamic theme to background and buttons
+    function hexToRgb(hex) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `${r}, ${g}, ${b}`;
+    }
+    document.body.style.setProperty("--char-color", meta.color);
+    document.body.style.setProperty("--char-rgb", hexToRgb(meta.color));
     playerNickEl.textContent = (nick ?? "\u0413\u0415\u0420\u041e\u0419").toUpperCase();
     coinCountEl.textContent = String(coins);
     playerAvatarEl.style.borderColor = meta.color;
@@ -139,22 +148,31 @@ async function initMenuUI() {
         gameTime++;
         const w = arenaCanvas.width;
         const h = arenaCanvas.height;
-        const cx = w / 2;
-        const by = h - 18;
         arCtx.clearRect(0, 0, w, h);
-        arCtx.fillStyle = "#111108";
-        arCtx.fillRect(0, h - 40, w, 40);
-        arCtx.shadowColor = "#8b6020";
-        arCtx.shadowBlur = 8;
-        arCtx.strokeStyle = "#6b4010";
-        arCtx.lineWidth = 3;
+        // Floor rendering
+        const floorY = h * 0.75;
+        arCtx.fillStyle = "#0a0a05";
+        arCtx.fillRect(0, floorY, w, h - floorY);
+        arCtx.shadowColor = meta.color;
+        arCtx.shadowBlur = 15;
+        arCtx.strokeStyle = meta.color;
+        arCtx.lineWidth = 2;
+        arCtx.globalAlpha = 0.3;
         arCtx.beginPath();
-        arCtx.moveTo(0, h - 40);
-        arCtx.lineTo(w, h - 40);
+        arCtx.moveTo(0, floorY);
+        arCtx.lineTo(w, floorY);
         arCtx.stroke();
+        arCtx.globalAlpha = 1.0;
         arCtx.shadowBlur = 0;
-        const bob = Math.sin(gameTime * 0.04) * 5;
-        drawCharacterPreview(arCtx, cx, by, charId ?? "knight", meta.color, bob, gameTime);
+        // Draw Character Scaled
+        arCtx.save();
+        // Position character in center, standing on floorY
+        const scale = 2.4;
+        arCtx.translate(w / 2, floorY - 10);
+        arCtx.scale(scale, scale);
+        const bob = Math.sin(gameTime * 0.04) * 4;
+        drawCharacterPreview(arCtx, 0, 0, charId ?? "knight", meta.color, bob, gameTime);
+        arCtx.restore();
         requestAnimationFrame(drawArena);
     }
     drawArena();
