@@ -1,7 +1,7 @@
 // registration.ts — entry point for index.html
 
 import {
-  getNick, setNick, getAvatar, setAvatar, getCharId,
+  getNick, setNick, getAvatar, setAvatar, getCharId, setCharId,
   isNickTaken, registerNick, getTelegramUser,
 } from "./player.js";
 

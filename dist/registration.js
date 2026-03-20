@@ -1,9 +1,40 @@
 // registration.ts — entry point for index.html
-import { getNick, setNick, getAvatar, setAvatar, getCharId, isNickTaken, registerNick, getTelegramUser, } from "./player.js";
+import { getNick, setNick, getAvatar, setAvatar, getCharId, setCharId, isNickTaken, registerNick, getTelegramUser, } from "./player.js";
 // ── Redirect if already registered ─────────────────────────────────────────
 if (getNick() && getCharId()) {
-    window.location.href = "menu.html";
+    window.location.replace("menu.html");
 }
+// If opened inside Telegram WebApp with a logged user, auto-fill and go to menu
+(async function tryAutofillFromTelegram() {
+    try {
+        const tg = getTelegramUser();
+        if (!tg)
+            return;
+        const username = tg.username || tg.first_name;
+        if (!username)
+            return;
+        // set nick + default character
+        setNick(username);
+        if (!getCharId())
+            setCharId("knight");
+        // try to get avatar from server endpoint and save
+        if (tg.id) {
+            try {
+                const resp = await fetch(`/api/user/${tg.id}`);
+                const j = await resp.json();
+                if (j && j.avatar)
+                    setAvatar(j.avatar);
+                localStorage.setItem("tgUserId", String(tg.id));
+            }
+            catch (e) { /* ignore */ }
+        }
+        // finally navigate to menu
+        window.location.replace("menu.html");
+    }
+    catch (e) {
+        // ignore
+    }
+})();
 // ── DOM refs ────────────────────────────────────────────────────────────────
 const avatarFrame = document.getElementById("avatarFrame");
 const avatarFileInput = document.getElementById("avatarFileInput");
@@ -78,11 +109,11 @@ function proceed() {
     if (flashEl) {
         flashEl.style.opacity = "1";
         setTimeout(() => {
-            window.location.href = "character.html";
+            window.location.replace("character.html");
         }, 300);
     }
     else {
-        window.location.href = "character.html";
+        window.location.replace("character.html");
     }
 }
 btnCheck.addEventListener("click", checkNick);

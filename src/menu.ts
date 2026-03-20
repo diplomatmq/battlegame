@@ -1,6 +1,6 @@
 // menu.ts — entry point for menu.html
 
-import { CHAR_META, getNick, getAvatar, getCharId, getCoins } from "./player.js";
+import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
 
 // ── Navigation ──────────────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
   if (nick && charId) return true;
   // Если ник есть, но герой не выбран — сразу переход на выбор героя
   if (nick && !charId) {
+    console.log("Menu: Nick exists but no CharId, redirecting to character.html");
     window.location.replace("character.html");
     return false;
   }
@@ -51,6 +52,7 @@ async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
           if (j.avatar) setAvatar(j.avatar);
           
           if (!getCharId()) {
+            console.log("Menu: TG param found but no CharId, redirecting to character.html");
             if (!window.location.pathname.endsWith('character.html')) {
               window.location.replace("character.html?tg=" + encodeURIComponent(tgParam));
             }
@@ -109,7 +111,8 @@ async function initMenuUI() {
   const bgCanvas       = document.getElementById("bgCanvas")     as HTMLCanvasElement;
   const flashEl        = document.getElementById("flash")        as HTMLElement | null;
 
-  const meta   = CHAR_META[charId as any];
+  if (!charId) return;
+  const meta   = CHAR_META[charId as CharId];
   const avatar = getAvatar();
   const coins  = getCoins();
 

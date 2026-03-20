@@ -22,7 +22,7 @@
     const tg = params.get('tg');
     const startPage = params.get('page') || 'menu.html';
     const url = tg ? `${startPage}?tg=${encodeURIComponent(tg)}` : startPage;
-    
+    console.log("Loading into iframe:", url);
     // Передаем window.location.hash внутрь фрейма, чтобы Telegram SDK инициализировался
     document.getElementById('gameFrame').src = url + window.location.hash;
   </script>

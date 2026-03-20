@@ -7,7 +7,7 @@ const btnConfirm = document.getElementById("btnConfirm");
 const flashEl = document.getElementById("flash");
 let selectedId = null;
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds = ["knight", "killer", "mage"];
+const charIds = ["knight", "killer", "mage", "necro", "berserker", "troll"];
 charIds.forEach(id => {
     const meta = CHAR_META[id];
     const card = document.createElement("div");
@@ -51,17 +51,53 @@ function selectChar(id) {
     btnConfirm.style.color = meta.color;
     btnConfirm.style.boxShadow = `0 0 16px ${meta.color}`;
 }
-function confirmSelect() {
+async function confirmSelect() {
     if (!selectedId)
         return;
     setCharId(selectedId);
     setCoins(100); // starter coins
+    try {
+        const { getTelegramUser } = await import("./player.js");
+        const tgUser = getTelegramUser();
+        // Попытка сохранить на сервере, если есть id Telegram
+        if (tgUser && tgUser.id) {
+            await fetch('/api/character', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegram_id: String(tgUser.id),
+                    character_id: selectedId,
+                    faction: 'human' // дефолт
+                })
+            });
+        }
+        else {
+            // Иначе пробуем достать из параметров (если tg= передано в URL)
+            const params = new URLSearchParams(window.location.search);
+            const tgParam = params.get('tg');
+            if (tgParam) {
+                await fetch('/api/character', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegram_id: tgParam,
+                        character_id: selectedId,
+                        faction: 'human'
+                    })
+                });
+            }
+        }
+    }
+    catch (e) { /* ignore backend errors and proceed locally */ }
     if (flashEl) {
         flashEl.style.opacity = "1";
-        setTimeout(() => { window.location.href = "menu.html"; }, 300);
+        setTimeout(() => {
+            console.log("Character: Selection confirmed, redirecting to menu.html");
+            window.location.replace("menu.html");
+        }, 300);
     }
     else {
-        window.location.href = "menu.html";
+        window.location.replace("menu.html");
     }
 }
 btnConfirm.addEventListener("click", confirmSelect);

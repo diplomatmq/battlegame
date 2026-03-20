@@ -101,8 +101,12 @@ async function confirmSelect(): Promise<void> {
 
   if (flashEl) {
     flashEl.style.opacity = "1";
-    setTimeout(() => { window.location.replace("menu.html"); }, 300);
+    setTimeout(() => { 
+      console.log("Character: Selection confirmed, redirecting to menu.html");
+      window.location.replace("menu.html"); 
+    }, 300);
   } else {
+    console.log("Character: Selection confirmed (no flash), redirecting to menu.html");
     window.location.replace("menu.html");
   }
 }

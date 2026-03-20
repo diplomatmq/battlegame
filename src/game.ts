@@ -3,7 +3,22 @@
 import { Fighter, state } from "./fighter.js";
 import { Particle, DamageText } from "./particles.js";
 import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
-import socket from "./socket";
+// import socket from "./socket";
+// ...
+// socket.emit("play", profile);
+// ...
+/*
+socket.on("startGame", (data: { opponent: string; profile: any; seed: number }) => {
+  isOnline = true;
+  startOnlineGame(data.profile, data.seed);
+});
+
+socket.on("waiting", () => {
+  isWaiting = true;
+  if (p2NameEl) p2NameEl.textContent = "ОЖИДАНИЕ...";
+});
+*/
+// playOnline();
 
 const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
 const ctx    = canvas.getContext("2d")!;
@@ -195,9 +210,10 @@ function playOnline() {
     weaponVisual: p1.equippedWeaponVisual
   };
   
-  socket.emit("play", profile);
+  // socket.emit("play", profile);
 }
 
+/*
 socket.on("startGame", (data: { opponent: string; profile: any; seed: number }) => {
   isOnline = true;
   startOnlineGame(data.profile, data.seed);
@@ -210,6 +226,7 @@ socket.on("waiting", () => {
 
 // Auto-start online search on load
 playOnline();
+*/
 
 function update(): void {
   if (isWaiting || !hasStarted) return; // wait for match to start
