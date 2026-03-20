@@ -7,7 +7,7 @@ import {
 
 // ── Redirect if already registered ─────────────────────────────────────────
 if (getNick() && getCharId()) {
-  window.location.href = "menu.html";
+  window.location.replace("menu.html");
 }
 
 // If opened inside Telegram WebApp with a logged user, auto-fill and go to menu
@@ -33,7 +33,7 @@ if (getNick() && getCharId()) {
     }
 
     // finally navigate to menu
-    window.location.href = "menu.html";
+    window.location.replace("menu.html");
   } catch (e) {
     // ignore
   }
@@ -115,10 +115,10 @@ function proceed(): void {
   if (flashEl) {
     flashEl.style.opacity = "1";
     setTimeout(() => {
-      window.location.href = "character.html";
+      window.location.replace("character.html");
     }, 300);
   } else {
-    window.location.href = "character.html";
+    window.location.replace("character.html");
   }
 }
 

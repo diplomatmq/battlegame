@@ -101,9 +101,9 @@ async function confirmSelect(): Promise<void> {
 
   if (flashEl) {
     flashEl.style.opacity = "1";
-    setTimeout(() => { window.location.href = "menu.html"; }, 300);
+    setTimeout(() => { window.location.replace("menu.html"); }, 300);
   } else {
-    window.location.href = "menu.html";
+    window.location.replace("menu.html");
   }
 }
 

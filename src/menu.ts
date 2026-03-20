@@ -8,9 +8,9 @@ function navigate(url: string): void {
   const flash = document.getElementById("flash");
   if (flash) {
     flash.style.opacity = "1";
-    setTimeout(() => { window.location.href = url; }, 280);
+    setTimeout(() => { window.location.replace(url); }, 280);
   } else {
-    window.location.href = url;
+    window.location.replace(url);
   }
 }
 function goPlay():       void { navigate("game.html");       }
@@ -30,7 +30,7 @@ async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
   if (nick && charId) return true;
   // Если ник есть, но герой не выбран — сразу переход на выбор героя
   if (nick && !charId) {
-    window.location.href = "character.html";
+    window.location.replace("character.html");
     return false;
   }
   // If URL contains ?tg=<id>, use that to auto-fill from server
@@ -52,7 +52,7 @@ async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
           
           if (!getCharId()) {
             if (!window.location.pathname.endsWith('character.html')) {
-              window.location.href = "character.html?tg=" + encodeURIComponent(tgParam);
+              window.location.replace("character.html?tg=" + encodeURIComponent(tgParam));
             }
             return false;
           }
@@ -78,7 +78,7 @@ async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
       } catch (e) {}
       
       if (!_getCharId()) {
-        window.location.href = `character.html?tg=${tgUser.id}`;
+        window.location.replace(`character.html?tg=${tgUser.id}`);
         return false;
       }
       
@@ -93,7 +93,7 @@ async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
   charId = getCharId();
   if (!charId) {
     if (window.location.pathname.endsWith('character.html')) return false;
-    window.location.href = "character.html";
+    window.location.replace("character.html");
     return false;
   }
   return true;
