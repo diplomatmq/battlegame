@@ -11,7 +11,7 @@ const flashEl        = document.getElementById("flash")          as HTMLElement 
 let selectedId: CharId | null = null;
 
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker"];
+const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll"];
 
 charIds.forEach(id => {
   const meta = CHAR_META[id];

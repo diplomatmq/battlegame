@@ -22,8 +22,10 @@ export function drawCharacterPreview(
   ctx.save();
   ctx.translate(cx, by + bob);
 
-  if (charType === "mage" || charType === "killer") {
+  if (charType === "mage") {
     _drawMagePreview(ctx, color, gt, s);
+  } else if (charType === "killer") {
+    _drawKillerPreview(ctx, color, gt, s);
   } else if (charType === "necro") {
     _drawNecroPreview(ctx, color, gt, s);
   } else if (charType === "berserker") {
@@ -38,239 +40,281 @@ export function drawCharacterPreview(
 }
 
 function _drawKnightPreview(ctx: CanvasRenderingContext2D, C: string, _s: number): void {
+  // Shadow
   ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.beginPath(); ctx.ellipse(0, 2, 30, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 4, 32, 10, 0, 0, Math.PI*2); ctx.fill();
   
+  // Cape (more flowing)
   ctx.fillStyle = "#8b1a1a";
-  ctx.beginPath(); ctx.moveTo(-10, -60); ctx.lineTo(-26, -5); ctx.lineTo(-8, -5); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-12, -60);
+  ctx.bezierCurveTo(-30, -40, -40, -10, -15, 0);
+  ctx.lineTo(-5, 5);
+  ctx.lineTo(-5, -55);
+  ctx.fill();
   
-  ctx.fillStyle = "#2a1b38"; ctx.fillRect(-12, -22, 10, 24);
-  
-  const grad = ctx.createLinearGradient(-14, -62, 14, -20);
-  grad.addColorStop(0, C); grad.addColorStop(1, "#222");
+  // Body (Rounded armor)
+  const grad = ctx.createLinearGradient(-15, -60, 15, -20);
+  grad.addColorStop(0, C); grad.addColorStop(1, "#1a1a2a");
   ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.roundRect(-14, -62, 28, 42, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-15, -62, 30, 44, 12); ctx.fill();
   
-  ctx.fillStyle = "#dde0e8";
-  ctx.beginPath(); ctx.roundRect(-10, -58, 20, 26, 3); ctx.fill();
+  // Chest plate
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath(); ctx.roundRect(-10, -58, 20, 28, 8); ctx.fill();
   
-  ctx.fillStyle = C; ctx.beginPath(); ctx.moveTo(0, -52); ctx.lineTo(6, -42); ctx.lineTo(0, -36); ctx.lineTo(-6, -42); ctx.fill();
+  // Legs (Rounded)
+  ctx.fillStyle = "#2a1b38"; 
+  ctx.beginPath(); ctx.roundRect(-14, -22, 12, 26, 6); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(2, -22, 12, 26, 6); ctx.fill();
   
-  ctx.fillStyle = "#ccc";
-  ctx.beginPath(); ctx.arc(-16, -58, 8, 0, Math.PI, true); ctx.fill();
-  ctx.beginPath(); ctx.arc(16, -58, 8, 0, Math.PI, true); ctx.fill();
+  // Helmet
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.roundRect(-15, -96, 30, 30, 15); ctx.fill();
   
-  ctx.fillStyle = "#4a3060"; ctx.fillRect(2, -22, 10, 24);
+  // Face
+  ctx.fillStyle = "#f0c88a"; 
+  ctx.beginPath(); ctx.roundRect(-10, -84, 20, 14, 4); ctx.fill();
   
-  ctx.fillStyle = C;
-  ctx.beginPath(); ctx.roundRect(-14, -94, 28, 26, 6); ctx.fill();
+  // Eyes
+  ctx.fillStyle = "#fff"; ctx.fillRect(-5, -81, 4, 4); ctx.fillRect(3, -81, 4, 4);
+  ctx.fillStyle = "#1e3a8a"; ctx.fillRect(-3, -80, 2, 2); ctx.fillRect(5, -80, 2, 2);
   
-  ctx.fillStyle = "#f0c88a"; ctx.fillRect(-8, -84, 16, 12); // face showing
-  ctx.fillStyle = "#fff"; ctx.fillRect(-5, -81, 4, 4); ctx.fillRect(3, -81, 4, 4); // eyes
-  ctx.fillStyle = "#1e3a8a"; ctx.fillRect(-3, -80, 2, 2); ctx.fillRect(5, -80, 2, 2); // pupils
-  ctx.strokeStyle = "#4a2a1a"; ctx.lineWidth = 1.5; // determined brow
-  ctx.beginPath(); ctx.moveTo(-6, -83); ctx.lineTo(-1, -82); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(8, -83); ctx.lineTo(3, -82); ctx.stroke(); ctx.lineWidth = 1;
+  // Plume
+  ctx.fillStyle = "#cc2200";
+  ctx.beginPath();
+  ctx.moveTo(0, -96);
+  ctx.bezierCurveTo(-15, -115, 15, -115, 0, -96);
+  ctx.fill();
   
-  ctx.fillStyle = C; ctx.fillRect(-22, -60, 10, 30);
+  // Sword & Shield
+  ctx.fillStyle = "#7a4010"; ctx.fillRect(18, -48, 6, 16); // handle
+  ctx.fillStyle = "#d8d8e8"; ctx.beginPath(); ctx.roundRect(16, -86, 10, 40, 5); ctx.fill();
   
   ctx.fillStyle = "#cc2200";
-  ctx.beginPath(); ctx.moveTo(-28, -66); ctx.lineTo(-12, -66); ctx.lineTo(-12, -30); ctx.lineTo(-20, -20); ctx.lineTo(-28, -30); ctx.fill();
-  ctx.lineWidth = 2; ctx.strokeStyle = "#ffcc00"; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-22, -45, 12, 18, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#ffcc00"; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function _drawKillerPreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.beginPath(); ctx.ellipse(0, 4, 28, 8, 0, 0, Math.PI*2); ctx.fill();
   
-  ctx.fillStyle = C; ctx.fillRect(14, -60, 10, 26);
-  ctx.fillStyle = "#7a4010"; ctx.fillRect(26, -48, 6, 16);
-  ctx.fillStyle = "#cc9900"; ctx.fillRect(20, -52, 18, 4);
-  ctx.fillStyle = "#d8d8e8";
-  ctx.beginPath(); ctx.moveTo(26,-86); ctx.lineTo(32,-86); ctx.lineTo(33,-52); ctx.lineTo(25,-52); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.fillRect(28, -84, 2, 32);
+  const pulse = Math.sin(gt * 0.1) * 0.2 + 0.8;
+  
+  // Body (Lean/Shadowy)
+  const grad = ctx.createLinearGradient(-12, -60, 12, -10);
+  grad.addColorStop(0, "#111"); grad.addColorStop(1, "#333");
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.roundRect(-12, -62, 24, 60, 10); ctx.fill();
+  
+  // Hood (Pointed/Organic)
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.moveTo(-15, -60);
+  ctx.bezierCurveTo(-18, -100, 18, -100, 15, -60);
+  ctx.fill();
+  
+  // Glow under hood
+  ctx.shadowBlur = 10; ctx.shadowColor = C;
+  ctx.fillStyle = C;
+  ctx.beginPath(); ctx.arc(-4, -75, 2, 0, Math.PI*2); ctx.arc(4, -75, 2, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  
+  // Scarf/Cloak
+  ctx.fillStyle = C;
+  ctx.beginPath();
+  ctx.moveTo(-12, -60);
+  ctx.bezierCurveTo(-25, -55, -25, -20, -10, -30);
+  ctx.lineTo(0, -40);
+  ctx.fill();
+  
+  // Dual Daggers
+  ctx.save();
+  ctx.translate(18, -45);
+  ctx.rotate(0.4);
+  ctx.fillStyle = "#333"; ctx.fillRect(-2, 0, 4, 10);
+  ctx.fillStyle = "#999"; ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(0, -18); ctx.lineTo(3, 0); ctx.fill();
+  ctx.restore();
+  
+  ctx.save();
+  ctx.translate(-18, -45);
+  ctx.rotate(-0.4);
+  ctx.fillStyle = "#333"; ctx.fillRect(-2, 0, 4, 10);
+  ctx.fillStyle = "#999"; ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(0, -18); ctx.lineTo(3, 0); ctx.fill();
+  ctx.restore();
 }
 
 function _drawMagePreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
   const float = Math.sin(gt * 0.05) * 5;
   ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.beginPath(); ctx.ellipse(0, 4, 24, 6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 4, 26, 8, 0, 0, Math.PI*2); ctx.fill();
   
   ctx.translate(0, float - 2);
   
-  ctx.fillStyle = "#2a0d5e"; ctx.beginPath(); ctx.roundRect(-14, -62, 28, 64, 6); ctx.fill();
-  
+  // Robe (Rounded)
   const grad = ctx.createLinearGradient(-12, -60, 12, 0);
-  grad.addColorStop(0, C); grad.addColorStop(1, "#331166");
+  grad.addColorStop(0, C); grad.addColorStop(1, "#1a1a2a");
   ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.roundRect(-12, -60, 24, 60, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-14, -62, 28, 64, 12); ctx.fill();
   
+  // Magical trim
   ctx.shadowBlur = 10; ctx.shadowColor = "#00e5ff";
-  ctx.fillStyle = "#00e5ff";
-  ctx.fillRect(-6, -20, 12, 2); ctx.fillRect(-4, -14, 8, 2);
+  ctx.fillStyle = "rgba(0,229,255,0.4)";
+  ctx.beginPath(); ctx.roundRect(-8, -20, 16, 4, 2); ctx.fill();
   ctx.shadowBlur = 0;
   
-  ctx.fillStyle = "#c8a0ff"; ctx.fillRect(-10, -44, 20, 6);
-  ctx.fillStyle = "#e0c0ff"; ctx.beginPath(); ctx.arc(0, -41, 4, 0, Math.PI*2); ctx.fill();
-  
-  ctx.fillStyle = C;
-  ctx.beginPath(); ctx.arc(-16, -58, 7, 0, Math.PI, true); ctx.fill();
+  // Shoulder pads
+  ctx.fillStyle = C; ctx.beginPath(); ctx.arc(-16, -58, 7, 0, Math.PI, true); ctx.fill();
   ctx.beginPath(); ctx.arc(16, -58, 7, 0, Math.PI, true); ctx.fill();
   
-  ctx.fillStyle = "#f0c88a"; ctx.fillRect(-6, -72, 12, 10);
-  ctx.fillStyle = "#f0c88a"; ctx.beginPath(); ctx.roundRect(-10, -90, 20, 20, 8); ctx.fill();
+  // Head
+  ctx.fillStyle = "#f0c88a"; 
+  ctx.beginPath(); ctx.roundRect(-10, -90, 20, 22, 10); ctx.fill();
   
-  ctx.fillStyle = "#e8c030";
-  ctx.beginPath(); ctx.roundRect(-12, -94, 24, 12, 6); ctx.fill();
+  // Hair
+  ctx.fillStyle = "#e8c030"; ctx.beginPath(); ctx.roundRect(-12, -94, 24, 14, 6); ctx.fill();
   
+  // Eyes
   ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(-4, -84, 3, 4, 0, 0, Math.PI*2); ctx.ellipse(4, -84, 3, 4, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#2055ff"; ctx.beginPath(); ctx.arc(-3, -84, 2, 0, Math.PI*2); ctx.arc(5, -84, 2, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -85, 1, 0, Math.PI*2); ctx.arc(4, -85, 1, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = "#b08020"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(-7, -89); ctx.lineTo(-1, -88); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(7, -89); ctx.lineTo(1, -88); ctx.stroke(); ctx.lineWidth = 1;
+  ctx.fillStyle = "#2055ff"; ctx.beginPath(); ctx.arc(-3, -84, 1.5, 0, Math.PI*2); ctx.arc(5, -84, 1.5, 0, Math.PI*2); ctx.fill();
   
-  ctx.fillStyle = C;
-  ctx.beginPath(); ctx.moveTo(-16, -90); ctx.lineTo(16, -90); ctx.lineTo(0, -114); ctx.fill();
+  // Hat (Pointed but rounded)
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(-16, -92);
+  ctx.lineTo(16, -92);
+  ctx.lineTo(0, -118);
+  ctx.fill();
   
-  ctx.fillStyle = C; ctx.fillRect(-22, -60, 8, 28);
-  
-  ctx.fillStyle = "#5c3a21"; ctx.fillRect(-26, -104, 4, 84);
+  // Staff
+  ctx.fillStyle = "#5c3a21"; ctx.beginPath(); ctx.roundRect(-26, -104, 5, 84, 2); ctx.fill();
   const crystalGlow = 16 + Math.sin(gt * 0.1) * 8;
   ctx.shadowBlur = crystalGlow; ctx.shadowColor = "#00e5ff";
   ctx.fillStyle = "#00e5ff";
-  ctx.beginPath(); ctx.moveTo(-24, -116); ctx.lineTo(-20, -106); ctx.lineTo(-24, -100); ctx.lineTo(-28, -106); ctx.fill();
+  ctx.beginPath(); ctx.arc(-23.5, -110, 8, 0, Math.PI*2); ctx.fill();
   ctx.shadowBlur = 0;
-  
-  ctx.fillStyle = C; ctx.fillRect(14, -60, 8, 24);
 }
 
 function _drawTrollPreview(ctx: CanvasRenderingContext2D, C: string, _s: number): void {
   ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.beginPath(); ctx.ellipse(0, 2, 38, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 4, 40, 12, 0, 0, Math.PI*2); ctx.fill();
   
-  ctx.fillStyle = "#2d4a1a"; ctx.beginPath(); ctx.roundRect(-18, -30, 16, 30, 4); ctx.fill();
-  
-  const grad = ctx.createLinearGradient(-26, -80, 26, -20);
+  // Body (Massive Round)
+  const grad = ctx.createLinearGradient(-30, -80, 30, -20);
   grad.addColorStop(0, C); grad.addColorStop(1, "#1a3311");
   ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.roundRect(-26, -80, 52, 56, 12); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-30, -80, 60, 56, 20); ctx.fill();
   
-  ctx.fillStyle = "rgba(0,0,0,0.2)";
-  ctx.beginPath(); ctx.arc(-10, -66, 14, 0, Math.PI, false); ctx.fill();
-  ctx.beginPath(); ctx.arc(10, -66, 14, 0, Math.PI, false); ctx.fill();
+  // Legs (Stocky)
+  ctx.fillStyle = "#2d4a1a"; 
+  ctx.beginPath(); ctx.roundRect(-22, -30, 18, 30, 5); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(4, -30, 18, 30, 5); ctx.fill();
   
-  ctx.fillStyle = "#4a2610"; ctx.beginPath(); ctx.roundRect(-24, -36, 48, 18, 4); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, -27, 4, 0, Math.PI*2); ctx.fill(); // bone buckle
+  // Arms (Huge)
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.roundRect(-42, -74, 18, 46, 10); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(24, -74, 18, 46, 10); ctx.fill();
   
-  ctx.fillStyle = "#666";
-  ctx.beginPath(); ctx.arc(-26, -76, 12, 0, Math.PI, true); ctx.fill();
-  ctx.beginPath(); ctx.arc(26, -76, 12, 0, Math.PI, true); ctx.fill();
+  // Head
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.roundRect(-22, -115, 44, 42, 18); ctx.fill();
   
-  ctx.fillStyle = "#2d4a1a"; ctx.beginPath(); ctx.roundRect(2, -30, 16, 30, 4); ctx.fill();
+  // Eyes
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-10, -96, 5, 0, Math.PI*2); ctx.arc(10, -96, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.arc(-9, -96, 2, 0, Math.PI*2); ctx.arc(11, -96, 2, 0, Math.PI*2); ctx.fill();
   
-  ctx.fillStyle = C;
-  ctx.beginPath(); ctx.roundRect(-38, -74, 16, 46, 8); ctx.fill(); // back arm
-  ctx.beginPath(); ctx.roundRect(22, -74, 16, 46, 8); ctx.fill();  // front arm
-  
-  ctx.fillStyle = C;
-  ctx.beginPath(); ctx.roundRect(-20, -112, 40, 36, 10); ctx.fill();
-  
-  ctx.fillStyle = "#cc0000"; // Warpaint
-  ctx.fillRect(-20, -96, 40, 6);
-  
-  ctx.fillStyle = "#fffde0";
-  ctx.beginPath(); ctx.moveTo(-16, -82); ctx.lineTo(-12, -96); ctx.lineTo(-8, -82); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(8, -82); ctx.lineTo(12, -96); ctx.lineTo(16, -82); ctx.fill();
-  
-  ctx.fillStyle = "#fff"; 
-  ctx.beginPath(); ctx.moveTo(-12, -100); ctx.lineTo(-5, -97); ctx.lineTo(-12, -95); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(6, -97); ctx.lineTo(13, -100); ctx.lineTo(13, -95); ctx.fill();
-  ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.arc(-7, -97, 1.5, 0, Math.PI*2); ctx.arc(11, -97, 1.5, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = "#1a1005"; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(-13, -102); ctx.lineTo(1, -98); ctx.lineTo(14, -102); ctx.stroke(); ctx.lineWidth = 1;
-  
-  ctx.fillStyle = "#3a2010";
-  ctx.beginPath(); ctx.moveTo(-16,-112); ctx.lineTo(-24,-130); ctx.lineTo(-6,-110); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(16,-112); ctx.lineTo(24,-130); ctx.lineTo(6,-110); ctx.fill();
-  
-  ctx.fillStyle = "#5c2e08"; ctx.fillRect(30, -100, 6, 80);
+  // Tusks
+  ctx.fillStyle = "#fffde0"; 
+  ctx.beginPath(); ctx.arc(-15, -80, 4, Math.PI, 0, true); ctx.fill();
+  ctx.beginPath(); ctx.arc(15, -80, 4, Math.PI, 0, true); ctx.fill();
+
+  // Axe
+  ctx.fillStyle = "#5c2e08"; ctx.beginPath(); ctx.roundRect(35, -100, 7, 80, 2); ctx.fill();
   ctx.fillStyle = "#8a8aaa";
-  ctx.beginPath(); ctx.moveTo(33,-96); ctx.lineTo(66,-112); ctx.lineTo(72,-76); ctx.lineTo(33,-64); ctx.fill();
-  ctx.fillStyle = "#e0e0f0";
-  ctx.beginPath(); ctx.moveTo(64,-108); ctx.lineTo(78,-114); ctx.lineTo(78,-74); ctx.lineTo(64,-78); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(55, -80, 15, 25, 0.2, 0, Math.PI*2); ctx.fill();
 }
 
 function _drawNecroPreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
   const float = Math.sin(gt * 0.05) * 4;
   // Shadow
   ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.beginPath(); ctx.ellipse(0, 4, 20, 5, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 4, 22, 6, 0, 0, Math.PI*2); ctx.fill();
   
   ctx.translate(0, float - 4); // Floating effect
   
-  // Robe body
-  ctx.fillStyle = "#111"; ctx.fillRect(-12, -64, 24, 52);
-  // Hood
-  ctx.fillStyle = "#111"; ctx.fillRect(-14, -86, 28, 22);
+  // Robe (Flowing)
+  ctx.fillStyle = "#111"; 
+  ctx.beginPath();
+  ctx.moveTo(-12, -64);
+  ctx.lineTo(12, -64);
+  ctx.lineTo(15, 0);
+  ctx.bezierCurveTo(0, 5, -10, 5, -14, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Hood (Rounded)
+  ctx.fillStyle = "#111"; 
+  ctx.beginPath(); ctx.roundRect(-15, -86, 30, 24, 12); ctx.fill();
+  
   // Face shadow
-  ctx.fillStyle = "#000"; ctx.fillRect(-8, -80, 16, 14);
+  ctx.fillStyle = "#000"; ctx.beginPath(); ctx.roundRect(-8, -80, 16, 14, 6); ctx.fill();
+  
   // Glowing eyes
   ctx.shadowBlur = 15; ctx.shadowColor = C; ctx.fillStyle = C;
-  ctx.beginPath(); ctx.moveTo(-6, -78); ctx.lineTo(-1, -75); ctx.lineTo(-6, -74); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(6, -78); ctx.lineTo(1, -75); ctx.lineTo(6, -74); ctx.fill();
+  ctx.beginPath(); ctx.arc(-4, -75, 2, 0, Math.PI*2); ctx.arc(4, -75, 2, 0, Math.PI*2); ctx.fill();
   ctx.shadowBlur = 0;
-  // Arcane trim
-  ctx.fillStyle = C; ctx.fillRect(-6, -64, 12, 2);
-  ctx.fillRect(-2, -62, 4, 30);
   
   // Staff
-  ctx.fillStyle = "#3a2a40"; ctx.fillRect(-24, -90, 4, 80);
+  ctx.fillStyle = "#3a2a40"; ctx.beginPath(); ctx.roundRect(-24, -90, 4, 80, 2); ctx.fill();
   // Staff skull
-  ctx.fillStyle = "#ddd"; ctx.fillRect(-28, -100, 12, 12);
-  ctx.fillStyle = "#000"; ctx.fillRect(-26, -96, 3, 3); ctx.fillRect(-21, -96, 3, 3);
-  // Magical aura from skull
+  ctx.fillStyle = "#ddd"; ctx.beginPath(); ctx.roundRect(-28, -100, 12, 12, 4); ctx.fill();
+  // Magical aura
   ctx.shadowBlur = 15; ctx.shadowColor = C;
-  ctx.fillStyle = `rgba(${C === "#ba55ff" ? "186,85,255" : "0,255,0"}, ${0.6 + Math.sin(gt * 0.1)*0.2})`;
-  ctx.beginPath(); ctx.arc(-22, -106, 6 + Math.sin(gt*0.1)*2, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = C;
+  ctx.beginPath(); ctx.arc(-22, -106, 7 + Math.sin(gt*0.1)*2, 0, Math.PI*2); ctx.fill();
   ctx.shadowBlur = 0;
 }
 
 function _drawBerserkerPreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
   // Shadow
   ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.beginPath(); ctx.ellipse(0, 2, 26, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 4, 30, 10, 0, 0, Math.PI*2); ctx.fill();
   
   const breathe = Math.sin(gt * 0.1) * 2;
   
-  // Back leg
-  ctx.fillStyle = "#4a2a1a"; ctx.fillRect(-16, -24, 12, 24);
-  // Torso (muscular)
-  ctx.fillStyle = "#e8a070"; ctx.fillRect(-18, -60, 36, 36 + breathe);
-  // Tribal tattoos
-  ctx.fillStyle = C; ctx.fillRect(-14, -54, 8, 4); ctx.fillRect(6, -54, 8, 4);
-  ctx.fillRect(-10, -46, 20, 4);
-  // Pants
-  ctx.fillStyle = "#3a1a10"; ctx.fillRect(-20, -28 - breathe, 40, 12);
-  // Belt
-  ctx.fillStyle = "#8a8a9a"; ctx.fillRect(-6, -30 - breathe, 12, 8);
-  // Front leg
-  ctx.fillStyle = "#4a2a1a"; ctx.fillRect(4, -24, 12, 24);
-  // Head
-  ctx.fillStyle = "#e8a070"; ctx.fillRect(-10, -78, 20, 18);
-  // Hair/Beard
-  ctx.fillStyle = C; ctx.fillRect(-12, -82, 24, 8); // Hair
-  ctx.fillRect(-12, -70, 24, 10); // Beard
-  // Eyes (enraged)
-  ctx.fillStyle = "#fff"; 
-  ctx.beginPath(); ctx.ellipse(-4, -74, 3, 2, 0, 0, Math.PI*2); ctx.ellipse(4, -74, 3, 2, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-3, -74, 1, 0, Math.PI*2); ctx.arc(5, -74, 1, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = C; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(-8, -77); ctx.lineTo(-2, -75); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(8, -77); ctx.lineTo(2, -75); ctx.stroke(); ctx.lineWidth = 1;
+  // Torso (Muscular/Rounded)
+  ctx.fillStyle = "#e8a070";
+  ctx.beginPath(); ctx.roundRect(-18, -60, 36, 36 + breathe, 12); ctx.fill();
   
-  // Double axes!
-  // Back axe
-  ctx.fillStyle = "#4a2a1a"; ctx.fillRect(-30, -70, 4, 40);
-  ctx.fillStyle = "#aab"; ctx.beginPath(); ctx.moveTo(-32,-74); ctx.lineTo(-44,-60); ctx.lineTo(-28,-50); ctx.fill();
-  // Front axe
-  ctx.fillStyle = "#4a2a1a"; ctx.fillRect(26, -70, 4, 40);
-  ctx.fillStyle = "#aab"; ctx.beginPath(); ctx.moveTo(32,-74); ctx.lineTo(44,-60); ctx.lineTo(28,-50); ctx.fill();
+  // Pants
+  ctx.fillStyle = "#3a1a10"; ctx.beginPath(); ctx.roundRect(-20, -28 - breathe, 40, 12, 5); ctx.fill();
+  
+  // Legs
+  ctx.fillStyle = "#4a2a1a"; 
+  ctx.beginPath(); ctx.roundRect(-16, -24, 12, 24, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(4, -24, 12, 24, 4); ctx.fill();
+  
+  // Head
+  ctx.fillStyle = "#e8a070";
+  ctx.beginPath(); ctx.roundRect(-10, -78, 20, 20, 8); ctx.fill();
+  
+  // Hair/Beard
+  ctx.fillStyle = C; 
+  ctx.beginPath(); ctx.arc(0, -78, 12, Math.PI, 0); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-12, -70, 24, 10, 4); ctx.fill();
+  
+  // Enraged Eyes
+  ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -72, 3, 0, Math.PI*2); ctx.arc(4, -72, 3, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4, -72, 1, 0, Math.PI*2); ctx.arc(4, -72, 1, 0, Math.PI*2); ctx.fill();
+  
+  // Axes
+  ctx.fillStyle = "#4a2a1a"; ctx.beginPath(); ctx.roundRect(-30, -70, 4, 40, 2); ctx.fill();
+  ctx.fillStyle = "#aab"; ctx.beginPath(); ctx.ellipse(-35, -60, 8, 12, 0.4, 0, Math.PI*2); ctx.fill();
+  
+  ctx.fillStyle = "#4a2a1a"; ctx.beginPath(); ctx.roundRect(26, -70, 4, 40, 2); ctx.fill();
+  ctx.fillStyle = "#aab"; ctx.beginPath(); ctx.ellipse(31, -60, 8, 12, -0.4, 0, Math.PI*2); ctx.fill();
 }
 
 
@@ -565,7 +609,7 @@ export class Fighter {
     } else if (isTroll) {
       this.drawTroll(ctx, gameTime, flash, legSwing, attacking);
     } else if (isKiller) {
-      this.drawKnight(ctx, gameTime, flash, legSwing, attacking); // killer uses knight body
+      this.drawKiller(ctx, gameTime, flash, legSwing, attacking);
     } else {
       this.drawKnight(ctx, gameTime, flash, legSwing, attacking);
     }
@@ -582,157 +626,235 @@ export class Fighter {
   private drawKnight(ctx: CanvasRenderingContext2D, _gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
     // Back leg
-    ctx.fillStyle = flash ? "#fff" : "#4a3060"; ctx.fillRect(-13, -22, 11, 24 - leg);
+    ctx.fillStyle = flash ? "#fff" : "#4a3060"; 
+    ctx.beginPath(); ctx.roundRect(-13, -22, 11, 24 - leg, 5); ctx.fill();
+    
     // Cape
     ctx.globalAlpha = 0.7; ctx.fillStyle = flash ? "#fff" : "#8b1a1a";
-    ctx.fillRect(-16, -56, 10, 38); ctx.globalAlpha = 1;
-    // Torso — armor
+    ctx.beginPath();
+    ctx.moveTo(-16, -56);
+    ctx.bezierCurveTo(-35, -30, -35, 0, -10, 5);
+    ctx.lineTo(-6, -56);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    
+    // Torso — armor (Rounded)
     this.fill(ctx, flash, C);
-    ctx.fillRect(-14, -60, 30, 42);
+    ctx.beginPath(); ctx.roundRect(-16, -62, 32, 44, 12); ctx.fill();
+    
     // Chest plate detail
-    if (!flash) { ctx.fillStyle = "#ddd"; ctx.fillRect(-10, -56, 22, 28); }
+    if (!flash) { 
+      ctx.fillStyle = "rgba(255,255,255,0.1)"; 
+      ctx.beginPath(); ctx.roundRect(-10, -56, 20, 30, 8); ctx.fill(); 
+    }
+    
     // Shoulder pads
-    if (!flash) { ctx.fillStyle = "#ccc"; ctx.fillRect(-18, -62, 10, 12); ctx.fillRect(8, -62, 10, 12); }
-    // Head / helmet
-    if (!flash) { ctx.fillStyle = "#f0c88a"; ctx.fillRect(-9, -82, 18, 18); } // face
+    if (!flash) { 
+      ctx.fillStyle = "#ccc"; 
+      ctx.beginPath(); ctx.arc(-18, -60, 8, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(14, -60, 8, 0, Math.PI*2); ctx.fill();
+    }
+    
+    // Head / helmet (Rounded)
+    if (!flash) { ctx.fillStyle = "#f0c88a"; ctx.beginPath(); ctx.roundRect(-9, -82, 18, 18, 4); ctx.fill(); }
     this.fill(ctx, flash, C);
-    ctx.fillRect(-11, -88, 22, 14); // helmet top
+    ctx.beginPath(); ctx.roundRect(-12, -90, 24, 16, 12); ctx.fill();
+    
     if (!flash) {
       // eyes
       ctx.fillStyle = "#fff"; ctx.fillRect(-5, -78, 5, 4); ctx.fillRect(3, -78, 5, 4);
       ctx.fillStyle = "#1e3a8a"; ctx.fillRect(-2, -77, 2, 3); ctx.fillRect(6, -77, 2, 3);
-      ctx.strokeStyle = "#4a2a1a"; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(-7, -80); ctx.lineTo(-2, -79); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(9, -80); ctx.lineTo(4, -79); ctx.stroke(); ctx.lineWidth = 1;
-      // raised visor
-      ctx.fillStyle = "#888"; ctx.fillRect(-11, -85, 22, 5);
-      // helmet lower guard
-      ctx.fillStyle = "#888"; ctx.fillRect(-9, -71, 18, 5);
+      // visor
+      ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-11, -85, 22, 5);
     }
+    
     // Front arm + shield
     this.fill(ctx, flash, C);
-    ctx.fillRect(-24, -60, 11, 32); // shield arm
+    ctx.beginPath(); ctx.roundRect(-24, -60, 12, 32, 6); ctx.fill();
     if (!flash) {
-      ctx.fillStyle = "#cc2200"; ctx.fillRect(-28, -64, 10, 38); // shield body
-      ctx.fillStyle = "#ffcc00"; ctx.fillRect(-25, -52, 4, 4);  // shield emblem
+      ctx.fillStyle = "#cc2200"; 
+      ctx.beginPath(); ctx.ellipse(-26, -45, 12, 18, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#ffcc00"; ctx.lineWidth = 2; ctx.stroke();
     }
     // Sword arm
     this.fill(ctx, flash, C);
-    ctx.fillRect(14, -62, 11, 28);
+    ctx.beginPath(); ctx.roundRect(14, -62, 12, 28, 6); ctx.fill();
     // Front leg
-    ctx.fillStyle = flash ? "#fff" : "#4a3060"; ctx.fillRect(2, -22, 11, 24 + leg);
-    // Weapon — use equipped visual if set
+    ctx.fillStyle = flash ? "#fff" : "#4a3060"; 
+    ctx.beginPath(); ctx.roundRect(2, -22, 11, 24 + leg, 5); ctx.fill();
+    
+    // Weapon
     const wv = this.equippedWeaponVisual;
     if (wv === "axe") this.drawAxe(ctx, atk);
     else if (wv === "hammer") this.drawHammer(ctx, atk);
-    else this.drawSword(ctx, atk); // default sword
+    else this.drawSword(ctx, atk);
+  }
+
+  private drawKiller(ctx: CanvasRenderingContext2D, _gt: number, flash: boolean, leg: number, atk: boolean): void {
+    const C = this.color;
+    // Lean body (Rounded)
+    const grad = ctx.createLinearGradient(-12, -60, 12, 0);
+    grad.addColorStop(0, "#1a1a1a"); grad.addColorStop(1, "#333");
+    ctx.fillStyle = flash ? "#fff" : grad;
+    ctx.beginPath(); ctx.roundRect(-12, -62, 24, 60, 10); ctx.fill();
+    
+    // Hood
+    ctx.fillStyle = flash ? "#fff" : "#000";
+    ctx.beginPath();
+    ctx.moveTo(-14, -60);
+    ctx.bezierCurveTo(-16, -95, 16, -95, 14, -60);
+    ctx.fill();
+    
+    if (!flash) {
+      // Glow under hood
+      ctx.shadowBlur = 15; ctx.shadowColor = C;
+      ctx.fillStyle = C;
+      ctx.beginPath(); ctx.arc(-4, -75, 2, 0, Math.PI*2); ctx.arc(4, -75, 2, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      // Scarf
+      ctx.fillStyle = C;
+      ctx.beginPath();
+      ctx.moveTo(-12, -60);
+      ctx.bezierCurveTo(-30, -50, -20, -10, -5, -35);
+      ctx.fill();
+    }
+    
+    // Legs
+    ctx.fillStyle = flash ? "#fff" : "#111";
+    ctx.beginPath(); ctx.roundRect(-10, -15, 8, 15 - leg, 4); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(2, -15, 8, 15 + leg, 4); ctx.fill();
+    
+    // Arms (Dual wield)
+    this.fill(ctx, flash, "#222");
+    ctx.beginPath(); ctx.roundRect(-20, -55, 8, 25, 4); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(12, -55, 8, 25, 4); ctx.fill();
+    
+    // Daggers
+    this.drawDagger(ctx, -18, -35, -0.5, atk);
+    this.drawDagger(ctx, 18, -35, 0.5, atk);
+  }
+
+  private drawDagger(ctx: CanvasRenderingContext2D, x: number, y: number, rot: number, atk: boolean): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(atk ? rot * 2.5 : rot);
+    ctx.fillStyle = "#333"; ctx.fillRect(-2, 0, 4, 8); // handle
+    ctx.fillStyle = "#ccc"; ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(0, -15); ctx.lineTo(3, 0); ctx.fill();
+    ctx.restore();
   }
 
   // ────────────────────────────────────────────────────────── MAGE
   private drawMage(ctx: CanvasRenderingContext2D, gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
     const glow = Math.sin(gt * 0.08) * 0.5 + 0.5;
-    // Robe back
+    // Robe back (Rounded)
     ctx.fillStyle = flash ? "#fff" : "#2a0d5e";
-    ctx.fillRect(-14, -60, 10, 62);
-    // Robe main
-    this.fill(ctx, flash, C);
-    ctx.fillRect(-12, -60, 26, 60);
+    ctx.beginPath(); ctx.roundRect(-14, -60, 10, 62, 5); ctx.fill();
+    
+    // Robe main (Organic path)
+    const grad = ctx.createLinearGradient(-12, -60, 12, 0);
+    grad.addColorStop(0, C); grad.addColorStop(1, "#1a0840");
+    this.fill(ctx, flash, grad as unknown as string);
+    ctx.beginPath();
+    ctx.moveTo(-12, -60);
+    ctx.lineTo(14, -60);
+    ctx.lineTo(16, 0);
+    ctx.bezierCurveTo(0, 5, -10, 5, -15, 0);
+    ctx.closePath();
+    ctx.fill();
+
     if (!flash) {
-      // Robe trim
-      ctx.fillStyle = "#c8a0ff"; ctx.fillRect(-12, -62, 26, 4);
-      ctx.fillRect(-12, -30, 26, 4);
+      // Robe trim (Rounded)
+      ctx.fillStyle = "#c8a0ff"; 
+      ctx.beginPath(); ctx.roundRect(-12, -62, 26, 4, 2); ctx.fill();
     }
-    // Back leg (robe slit)
-    ctx.fillStyle = flash ? "#fff" : "#1a0840"; ctx.fillRect(-10, -20, 9, 20 - leg);
-    // Front leg
-    ctx.fillStyle = flash ? "#fff" : "#1a0840"; ctx.fillRect(2, -20, 9, 20 + leg);
-    // Body under robe (belt)
-    if (!flash) { ctx.fillStyle = "#c8a0ff"; ctx.fillRect(-8, -42, 18, 5); }
-    // Cloak shoulders
+    
+    // Legs
+    ctx.fillStyle = flash ? "#fff" : "#1a0840"; 
+    ctx.beginPath(); ctx.roundRect(-10, -15, 8, 15 - leg, 4); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(2, -15, 8, 15 + leg, 4); ctx.fill();
+    
+    // Shoulder pads (Rounded)
     this.fill(ctx, flash, C);
-    ctx.fillRect(-18, -62, 8, 20); ctx.fillRect(12, -62, 8, 20);
-    // Neck
-    if (!flash) { ctx.fillStyle = "#f0c88a"; ctx.fillRect(-5, -72, 11, 12); }
-    // Head
-    if (!flash) { ctx.fillStyle = "#f0c88a"; ctx.fillRect(-9, -88, 18, 20); }
-    // Hair (blonde)
-    if (!flash) { ctx.fillStyle = "#e8c030"; ctx.fillRect(-10, -92, 20, 10); ctx.fillRect(-12, -88, 6, 14); }
-    // Eyes
-    if (!flash) {
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(-4, -80, 3, 4, 0, 0, Math.PI*2); ctx.ellipse(4, -80, 3, 4, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#2055ff"; ctx.beginPath(); ctx.arc(-3, -80, 2, 0, Math.PI*2); ctx.arc(5, -80, 2, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -81, 1, 0, Math.PI*2); ctx.arc(4, -81, 1, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = "#b08020"; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(-7, -85); ctx.lineTo(-1, -84); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(7, -85); ctx.lineTo(1, -84); ctx.stroke(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(-15, -60, 6, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(12, -60, 6, 0, Math.PI*2); ctx.fill();
+
+    // Head (Rounded)
+    if (!flash) { ctx.fillStyle = "#f0c88a"; ctx.beginPath(); ctx.roundRect(-9, -88, 18, 20, 8); ctx.fill(); }
+    
+    // Hair (Organic)
+    if (!flash) { 
+      ctx.fillStyle = "#e8c030"; 
+      ctx.beginPath(); ctx.arc(0, -90, 10, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-12, -88, 6, 14, 3); ctx.fill();
     }
-    // Hood / hat
+    
+    // Hat (Pointy but rounded base)
     this.fill(ctx, flash, C);
-    ctx.fillRect(-10, -96, 20, 10);
+    ctx.beginPath();
+    ctx.moveTo(-15, -92);
+    ctx.lineTo(15, -92);
+    ctx.lineTo(0, -115);
+    ctx.closePath();
+    ctx.fill();
+    
     // Staff arm
-    this.fill(ctx, flash, C); ctx.fillRect(-20, -62, 9, 30);
-    // Staff
-    if (!flash) { ctx.fillStyle = "#8b5c20"; ctx.fillRect(-26, -100, 5, 80); }
+    this.fill(ctx, flash, C); ctx.beginPath(); ctx.roundRect(-20, -62, 9, 30, 4); ctx.fill();
+    // Staff (Natural wood)
+    if (!flash) { 
+        ctx.fillStyle = "#6b3e23"; 
+        ctx.beginPath(); ctx.roundRect(-26, -100, 5, 80, 2); ctx.fill(); 
+    }
     // Orb glow
     if (!flash) {
-      ctx.shadowBlur = 20 + glow * 20; ctx.shadowColor = C;
-      ctx.fillStyle = flash ? "#fff" : `rgba(${this.color === "#00e5ff" ? "0,200,255" : this.color === "#00ff88" ? "0,255,136" : "187,68,255"},${0.8 + glow * 0.2})`;
-      ctx.beginPath(); ctx.arc(-24, -105, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 25 + glow * 15; ctx.shadowColor = C;
+      ctx.fillStyle = `rgba(${this.color === "#00e5ff" ? "0,200,255" : this.color === "#00ff88" ? "0,255,136" : "187,68,255"},${0.8 + glow * 0.2})`;
+      ctx.beginPath(); ctx.arc(-24, -105, 10, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
-    }
-    // Cast hand glow on attack
-    if (atk && !flash) {
-      ctx.shadowBlur = 30; ctx.shadowColor = C;
-      ctx.fillStyle = C; ctx.beginPath(); ctx.arc(18, -50, 11, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
-    } else {
-      this.fill(ctx, flash, C); ctx.fillRect(14, -58, 9, 22);
     }
   }
 
   // ────────────────────────────────────────────────────────── TROLL
   private drawTroll(ctx: CanvasRenderingContext2D, _gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
-    // Back leg
-    ctx.fillStyle = flash ? "#fff" : "#3d5c1a"; ctx.fillRect(-16, -28, 14, 28 - leg);
-    // Body (big & stocky)
-    this.fill(ctx, flash, C);
-    ctx.fillRect(-22, -74, 46, 52);
+    // Legs (Stocky/Rounded)
+    ctx.fillStyle = flash ? "#fff" : "#3d5c1a"; 
+    ctx.beginPath(); ctx.roundRect(-18, -28, 16, 28 - leg, 8); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(4, -28, 16, 28 + leg, 8); ctx.fill();
+
+    // Body (Massive/Rounded)
+    const grad = ctx.createLinearGradient(-25, -70, 25, 0);
+    grad.addColorStop(0, C); grad.addColorStop(1, "#1a3011");
+    this.fill(ctx, flash, grad as unknown as string);
+    ctx.beginPath(); ctx.roundRect(-25, -74, 50, 52, 20); ctx.fill();
+    
     if (!flash) {
-      // Leather loincloth
-      ctx.fillStyle = "#6b3a10"; ctx.fillRect(-20, -30, 42, 14);
-      // Muscle definition
-      ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.fillRect(-10, -70, 8, 30); ctx.fillRect(4, -70, 8, 30);
-      // Shoulder armor
-      ctx.fillStyle = "#888"; ctx.fillRect(-26, -76, 14, 14); ctx.fillRect(14, -76, 14, 14);
+      // Skin details (Warpaint/Tattoos)
+      ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.beginPath(); ctx.arc(0, -50, 15, 0, Math.PI*2); ctx.fill();
     }
-    // Head (bigger, brutish)
+    
+    // Head (Protruding/Rounded)
     this.fill(ctx, flash, C);
-    ctx.fillRect(-16, -100, 34, 30);
+    ctx.beginPath(); ctx.roundRect(-18, -105, 36, 35, 15); ctx.fill();
+    
     if (!flash) {
-      // Tusks
-      ctx.fillStyle = "#fffde0"; ctx.fillRect(-14, -76, 5, 10); ctx.fillRect(11, -76, 5, 10);
-      // Eyes, sharp angry shape
+      // Tusks (Curved)
+      ctx.fillStyle = "#fffde0"; 
+      ctx.beginPath(); ctx.quadraticCurveTo(-20, -70, -25, -85); ctx.lineTo(-15, -75); ctx.fill();
+      ctx.beginPath(); ctx.quadraticCurveTo(20, -70, 25, -85); ctx.lineTo(15, -75); ctx.fill();
+      
+      // Eyes (Angry)
       ctx.fillStyle = "#fff"; 
-      ctx.beginPath(); ctx.moveTo(-11, -92); ctx.lineTo(-4, -89); ctx.lineTo(-11, -87); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(5, -89); ctx.lineTo(12, -92); ctx.lineTo(12, -87); ctx.fill();
-      ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.arc(-6, -89, 1.5, 0, Math.PI*2); ctx.arc(10, -89, 1.5, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = "#1a1005"; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(-12, -94); ctx.lineTo(0, -90); ctx.lineTo(13, -94); ctx.stroke(); ctx.lineWidth = 1;
-      // Nose
-      ctx.fillStyle = "#2d5010"; ctx.fillRect(-4, -84, 8, 6);
-      // Horns
-      ctx.fillStyle = "#4a3010";
-      ctx.beginPath(); ctx.moveTo(-12, -100); ctx.lineTo(-18, -118); ctx.lineTo(-5, -100); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(14, -100); ctx.lineTo(20, -118); ctx.lineTo(8, -100); ctx.fill();
+      ctx.beginPath(); ctx.arc(-8, -92, 4, 0, Math.PI*2); ctx.arc(8, -92, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.arc(-7, -92, 2, 0, Math.PI*2); ctx.arc(9, -92, 2, 0, Math.PI*2); ctx.fill();
     }
-    // Arms
+    
+    // Arms (Huge/Rounded)
     this.fill(ctx, flash, C);
-    ctx.fillRect(-36, -72, 16, 40); // back arm
-    ctx.fillRect(22, -72, 16, 40);  // front arm
-    // Front leg
-    ctx.fillStyle = flash ? "#fff" : "#3d5c1a"; ctx.fillRect(4, -28, 14, 28 + leg);
+    ctx.beginPath(); ctx.roundRect(-40, -72, 18, 44, 9); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(22, -72, 18, 44, 9); ctx.fill();
+    
     // Axe
     this.drawAxe(ctx, atk);
   }
@@ -746,45 +868,48 @@ export class Fighter {
     
     // Aura glow
     if (atk && !flash) {
-      ctx.shadowBlur = 40; ctx.shadowColor = C;
+      ctx.shadowBlur = 45; ctx.shadowColor = C;
     }
     
-    // Robe pack
-    ctx.fillStyle = flash ? "#fff" : "#111"; ctx.fillRect(-12, -64, 24, 60);
-    // Dark magic tendrils
+    // Robe pack (Flowing)
+    ctx.fillStyle = flash ? "#fff" : "#111"; 
+    ctx.beginPath();
+    ctx.moveTo(-15, -64);
+    ctx.lineTo(15, -64);
+    ctx.lineTo(18, 5);
+    ctx.bezierCurveTo(0, 10, -10, 10, -18, 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Dark magic tendrils (Organic)
     if (!flash) {
       ctx.fillStyle = C; 
-      ctx.globalAlpha = 0.6 + Math.sin(gt*0.1)*0.3;
-      ctx.fillRect(-16, -20 + leg, 4, 20);
-      ctx.fillRect(12, -10 - leg, 4, 15);
+      ctx.globalAlpha = 0.5 + Math.sin(gt*0.1)*0.3;
+      ctx.beginPath(); ctx.ellipse(-14, 0, 4, 15 + Math.sin(gt*0.2)*5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(14, 0, 4, 15 + Math.cos(gt*0.2)*5, 0, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
     }
     
-    // Arcane trim
-    this.fill(ctx, flash, C);
-    ctx.fillRect(-6, -64, 12, 2);
-    ctx.fillRect(-2, -62, 4, 30);
+    // Head/Hood (Organic/Rounded)
+    ctx.fillStyle = flash ? "#fff" : "#111"; 
+    ctx.beginPath(); ctx.roundRect(-15, -90, 30, 26, 15); ctx.fill();
     
-    // Head/Hood
-    ctx.fillStyle = flash ? "#fff" : "#111"; ctx.fillRect(-14, -86, 28, 22);
     if (!flash) {
-      ctx.fillStyle = "#000"; ctx.fillRect(-8, -80, 16, 14); // Face shadow
+      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.roundRect(-10, -82, 20, 16, 8); ctx.fill(); // Face shadow
       // Glowing angular eyes
       ctx.shadowBlur = 15; ctx.shadowColor = C; ctx.fillStyle = C;
-      ctx.beginPath(); ctx.moveTo(-6, -78); ctx.lineTo(-1, -75); ctx.lineTo(-6, -74); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(6, -78); ctx.lineTo(1, -75); ctx.lineTo(6, -74); ctx.fill();
+      ctx.beginPath(); ctx.arc(-4, -76, 2.5, 0, Math.PI*2); ctx.arc(4, -76, 2.5, 0, Math.PI*2); ctx.fill();
       ctx.shadowBlur = 0;
     }
     
-    // Staff
+    // Staff (Organic)
     if (!flash) {
-      ctx.fillStyle = "#3a2a40"; ctx.fillRect(16, -90, 4, 80);
-      // Skull
-      ctx.fillStyle = "#ddd"; ctx.fillRect(12, -100, 12, 12);
-      ctx.fillStyle = "#000"; ctx.fillRect(14, -96, 3, 3); ctx.fillRect(19, -96, 3, 3);
+      ctx.fillStyle = "#3a2a40"; ctx.beginPath(); ctx.roundRect(18, -95, 4, 85, 2); ctx.fill();
+      // Skull (Rounded)
+      ctx.fillStyle = "#ddd"; ctx.beginPath(); ctx.roundRect(14, -105, 12, 12, 4); ctx.fill();
       // Glow
-      ctx.shadowBlur = 20; ctx.shadowColor = C;
-      ctx.fillStyle = C; ctx.beginPath(); ctx.arc(18, -106, 6 + (atk ? 4 : 0), 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur = 25; ctx.shadowColor = C;
+      ctx.fillStyle = C; ctx.beginPath(); ctx.arc(20, -110, 7 + (atk ? 5 : 0), 0, Math.PI*2); ctx.fill();
       ctx.shadowBlur = 0;
     }
   }
@@ -793,64 +918,66 @@ export class Fighter {
   private drawBerserker(ctx: CanvasRenderingContext2D, _gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
     
-    // Back leg
-    ctx.fillStyle = flash ? "#fff" : "#4a2a1a"; ctx.fillRect(-16, -24, 12, 24 - leg);
+    // Legs (Muscular/Rounded)
+    ctx.fillStyle = flash ? "#fff" : "#4a2a1a"; 
+    ctx.beginPath(); ctx.roundRect(-18, -24, 14, 24 - leg, 6); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(6, -24, 14, 24 + leg, 6); ctx.fill();
     
-    // Muscular Body
+    // Muscular Body (Organic)
     this.fill(ctx, flash, "#e8a070");
-    ctx.fillRect(-18, -60, 36, 36);
+    ctx.beginPath(); ctx.roundRect(-22, -65, 44, 42, 15); ctx.fill();
     
     if (!flash) {
-      // Tattoos (Color!)
+      // Tattoos (Rounded)
       ctx.fillStyle = C;
-      ctx.fillRect(-14, -54, 8, 4); ctx.fillRect(6, -54, 8, 4);
-      ctx.fillRect(-10, -46, 20, 6);
+      ctx.beginPath(); ctx.arc(-10, -50, 5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(10, -50, 5, 0, Math.PI*2); ctx.fill();
       
-      // Pants
-      ctx.fillStyle = "#3a1a10"; ctx.fillRect(-20, -28, 40, 12);
-      ctx.fillStyle = "#8a8a9a"; ctx.fillRect(-6, -30, 12, 8); // Belt
+      // Pants (Rounded)
+      ctx.fillStyle = "#3a1a10"; ctx.beginPath(); ctx.roundRect(-24, -30, 48, 14, 5); ctx.fill();
+      ctx.fillStyle = "#8a8a9a"; ctx.beginPath(); ctx.roundRect(-8, -32, 16, 8, 3); ctx.fill(); // Belt
     }
     
-    // Head & Hair
+    // Head (Rounded)
     this.fill(ctx, flash, "#e8a070");
-    ctx.fillRect(-10, -78, 20, 18);
+    ctx.beginPath(); ctx.roundRect(-12, -85, 24, 22, 10); ctx.fill();
+    
     if (!flash) {
+      // Hair/Beard (Organic)
       ctx.fillStyle = C; 
-      ctx.fillRect(-12, -82, 24, 8);  // Hair
-      ctx.fillRect(-12, -70, 24, 10); // Beard
-      // Eyes
+      ctx.beginPath(); ctx.arc(0, -85, 14, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-14, -72, 28, 12, 5); ctx.fill(); // Beard
+      
+      // Eyes (Angry dots)
       ctx.fillStyle = "#fff"; 
-      ctx.beginPath(); ctx.ellipse(-4, -74, 3, 2, 0, 0, Math.PI*2); ctx.ellipse(4, -74, 3, 2, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-3, -74, 1, 0, Math.PI*2); ctx.arc(5, -74, 1, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = C; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(-8, -77); ctx.lineTo(-2, -75); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(8, -77); ctx.lineTo(2, -75); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(-5, -78, 3, 0, Math.PI*2); ctx.arc(5, -78, 3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-5, -78, 1, 0, Math.PI*2); ctx.arc(5, -78, 1, 0, Math.PI*2); ctx.fill();
     }
     
-    // Front leg
-    ctx.fillStyle = flash ? "#fff" : "#4a2a1a"; ctx.fillRect(4, -24, 12, 24 + leg);
-    
-    // Fire trail / Rage aura when attacking
+    // Rage aura
     if (atk && !flash) {
-      ctx.shadowBlur = 20; ctx.shadowColor = C;
+      ctx.shadowBlur = 30; ctx.shadowColor = C;
       ctx.fillStyle = C;
-      ctx.globalAlpha = 0.5;
-      ctx.fillRect(-24, -64, 48, 44);
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath(); ctx.arc(0, -45, 40, 0, Math.PI*2); ctx.fill();
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     }
     
-    // Equipped weapon or Double Axes
+    // Weapons
     const wv = this.equippedWeaponVisual;
     if (wv === "sword") this.drawSword(ctx, atk);
     else if (wv === "hammer") this.drawHammer(ctx, atk);
     else {
-      // Berserker dual wields axes if no specific weapon!
+      // Dual axes (Positioned naturally)
       ctx.save();
-      ctx.translate(-24, 0); // Back hand
+      ctx.translate(-28, -40);
       this.drawAxe(ctx, atk);
       ctx.restore();
-      this.drawAxe(ctx, atk); // Front hand
+      ctx.save();
+      ctx.translate(22, -40);
+      this.drawAxe(ctx, atk);
+      ctx.restore();
     }
   }
 
