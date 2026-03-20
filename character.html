@@ -54,135 +54,150 @@
 
         .header {
             position: relative;
-            z-index: 1;
+            z-index: 10;
             text-align: center;
-            margin-bottom: 24px;
+            margin-top: 40px;
+            pointer-events: none;
         }
 
         .header h1 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 900;
-            background: linear-gradient(135deg, #ba55ff 0%, #00e5ff 100%);
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: 4px;
-            filter: drop-shadow(0 0 20px rgba(186,85,255,0.3));
+            letter-spacing: 6px;
+            filter: drop-shadow(0 0 20px rgba(255,255,255,0.2));
             margin-bottom: 8px;
+            text-transform: uppercase;
         }
 
         .header p {
-            font-size: 11px;
-            color: rgba(255,255,255,0.35);
-            letter-spacing: 3px;
-            font-weight: 500;
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 4px;
+            font-weight: 600;
         }
 
-        /* ─── Cards row ───────────────────────────────── */
-        .cards {
-            position: relative;
-            z-index: 1;
+        /* ─── Carousel Layout ────────────────────────── */
+        .cards-viewport {
+            position: absolute;
+            inset: 0;
             display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-            max-width: 600px;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            padding: 0 50%; /* Center the items */
+            z-index: 5;
+        }
+        .cards-viewport::-webkit-scrollbar { display: none; }
+
+        .cards-inner {
+            display: flex;
+            gap: 40px;
+            padding-right: 50vw; /* balance the initial padding */
         }
 
         .char-card {
-            width: 160px;
+            width: 75vw;
+            max-width: 320px;
+            height: 60vh;
+            max-height: 520px;
+            scroll-snap-align: center;
+            flex-shrink: 0;
             background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 40px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 16px 12px 14px;
+            justify-content: center;
+            padding: 30px 20px;
+            transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            opacity: 0.2;
+            transform: scale(0.8);
             position: relative;
-            overflow: hidden;
         }
 
-        .char-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 20px;
-            background: radial-gradient(ellipse at 50% 0%, var(--glow-color, rgba(0,229,255,0.08)), transparent 70%);
-            opacity: 0;
-            transition: opacity 0.35s;
+        .char-card.active {
+            opacity: 1;
+            transform: scale(1.05);
+            border-color: var(--char-color, #ba55ff);
+            box-shadow: 0 0 80px rgba(var(--char-rgb), 0.2);
+            background: rgba(255,255,255,0.05);
         }
-
-        .char-card:hover {
-            border-color: var(--char-color);
-            transform: translateY(-6px);
-            box-shadow: 0 12px 40px rgba(var(--char-rgb), 0.2);
-        }
-        .char-card:hover::before { opacity: 1; }
-
-        .char-card.selected {
-            border-color: var(--char-color) !important;
-            box-shadow: 0 0 0 1px var(--char-color), 0 0 40px rgba(var(--char-rgb), 0.3) !important;
-        }
-        .char-card.selected::before { opacity: 1; }
 
         .char-card canvas {
-            display: block;
-            position: relative;
-            z-index: 1;
+            width: 130% !important;
+            height: auto !important;
+            max-height: 300px;
+            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.6));
+            margin-bottom: 20px;
+        }
+
+        .char-info-box {
+            text-align: center;
+            transition: transform 0.4s;
         }
 
         .char-name {
             font-family: 'Orbitron', sans-serif;
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 800;
             color: #fff;
             letter-spacing: 2px;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
+            text-shadow: 0 0 15px rgba(255,255,255,0.2);
         }
 
         .char-stats {
-            font-size: 12px;
+            font-size: 13px;
             color: rgba(255,255,255,0.5);
             font-weight: 600;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
         /* Confirm button */
         .btn-confirm {
             position: fixed;
             bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 20;
             background: var(--char-color, #ba55ff);
             border: none;
-            border-radius: 20px;
+            border-radius: 24px;
             color: #000;
             font-family: 'Orbitron', sans-serif;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 900;
-            padding: 18px 60px;
+            padding: 20px 70px;
             cursor: pointer;
             letter-spacing: 4px;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 10px 30px rgba(var(--char-rgb), 0.3);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            box-shadow: 0 15px 40px rgba(var(--char-rgb), 0.4);
             text-transform: uppercase;
         }
 
         .btn-confirm:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 15px 40px rgba(var(--char-rgb), 0.4);
+            transform: translateX(-50%) translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(var(--char-rgb), 0.5);
             background: #fff;
         }
-        .btn-confirm:active { transform: translateY(0); }
+        .btn-confirm:active { transform: translateX(-50%) translateY(0); }
         .btn-confirm:disabled {
-            opacity: 0.3;
+            opacity: 0.1;
             filter: grayscale(1);
             cursor: not-allowed;
-            transform: none !important;
+            transform: translateX(-50%) !important;
         }
 
         #flash {
@@ -212,6 +227,6 @@
     </button>
 
     <div id="flash"></div>
-    <script type="module" src="dist/character.js?v=20260320-v2"></script>
+    <script type="module" src="dist/character.js?v=20260320-v3"></script>
 </body>
 </html>
