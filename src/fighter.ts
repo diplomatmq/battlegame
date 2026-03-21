@@ -1,6 +1,7 @@
 // fighter.ts — Fighter class: AI, damage, pixel-art draw
 
 import { Particle, DamageText } from "./particles.js";
+import { drawCryoKnight } from "./cryo-knight-draw.js";
 
 // Shared mutable state — use an object so it acts as a reference
 export const state = { screenShake: 0 };
@@ -33,7 +34,13 @@ export function drawCharacterPreview(
   } else if (charType === "troll") {
     _drawTrollPreview(ctx, color, s);
   } else if (charType === "knight") {
-    _drawCryoKnightPreview(ctx, color, s);
+    drawCryoKnight(
+      ctx, 0, 0, s * 0.8, true, "idle", 0, 0,
+      Math.sin(gt * 0.04) * 1.5, // breath
+      0, 0, 0, gt * 0.05, // capePh
+      0.8 + Math.sin(gt * 0.02) * 0.2, // eyeGlow
+      gt, [], [], [], null, null
+    );
   } else {
     _drawKnightPreview(ctx, color, s);
   }
