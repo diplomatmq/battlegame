@@ -1,6 +1,7 @@
 // game.ts — entry point for game.html
 
 import { Fighter, state } from "./fighter.js";
+import { CryoKnightFighter } from "./cryo-knight-fighter.js";
 import { Particle, DamageText } from "./particles.js";
 import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
 // import socket from "./socket";
@@ -72,7 +73,12 @@ if (hp2Fill)    hp2Fill.style.background       = enemy.color;
 if (p2AvatarEl) p2AvatarEl.textContent = enemy.name.substring(0, 2);
 
 // --- Fighters ---
-const p1 = new Fighter(200, 480, meta.color,   "hp-fill-1", true,  meta.isKnight, particles, damageTexts);
+let p1: Fighter;
+if (savedCharId === "cryo_knight") {
+  p1 = new CryoKnightFighter(200, 480, meta.color, "hp-fill-1", true, particles, damageTexts);
+} else {
+  p1 = new Fighter(200, 480, meta.color, "hp-fill-1", true, meta.isKnight, particles, damageTexts);
+}
 p1.charType = savedCharId;
 
 // Apply player stats from equipment/level system
@@ -83,7 +89,12 @@ p1.playerSpd = stats.spd;
 p1.equippedWeaponVisual = getEquippedWeaponVisual();
 
 // Base p2 init (will be overridden if online)
-let p2 = new Fighter(700, 480, enemy.color,  "hp-fill-2", false, false,          particles, damageTexts);
+let p2: Fighter;
+if (enemy.charType === "cryo_knight") {
+  p2 = new CryoKnightFighter(700, 480, enemy.color, "hp-fill-2", false, particles, damageTexts);
+} else {
+  p2 = new Fighter(700, 480, enemy.color, "hp-fill-2", false, false, particles, damageTexts);
+}
 p2.charType = enemy.charType;
 p2.playerAtk = enemy.atk;
 p2.playerDef = enemy.def;
@@ -180,6 +191,13 @@ function startOnlineGame(opponentData: any, seed: number) {
   }
   if (hp2Fill) hp2Fill.style.background = oppColor;
 
+  if (oppCharType === "cryo_knight") {
+    const oldP2 = p2;
+    p2 = new CryoKnightFighter(oldP2.x, oldP2.y, oppColor, "hp-fill-2", false, particles, damageTexts);
+    p1.setOpponent(p2);
+    p2.setOpponent(p1);
+  }
+
   p2.charType = oppCharType;
   p2.color = oppColor;
   p2.playerAtk = opponentData.atk || 1;
@@ -240,9 +258,16 @@ function update(): void {
     if (p1.hp <= 0 || p2.hp <= 0) {
       gameOver = true;
       if (p1.hp > 0 && p2.hp <= 0) {
-        // Player won — award XP + record win for challenges
+        p1.fighterState = "victory";
+        p2.fighterState = "death";
         addXP(50);
         recordFightWon();
+      } else if (p2.hp > 0 && p1.hp <= 0) {
+        p1.fighterState = "death";
+        p2.fighterState = "victory";
+      } else {
+        p1.fighterState = "death";
+        p2.fighterState = "death";
       }
     }
   }

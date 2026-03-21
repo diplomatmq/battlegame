@@ -5,7 +5,7 @@ import { Particle, DamageText } from "./particles.js";
 // Shared mutable state — use an object so it acts as a reference
 export const state = { screenShake: 0 };
 
-export type FighterState = "idle" | "moving" | "retreating" | "attacking" | "charging" | "casting" | "circling";
+export type FighterState = "idle" | "moving" | "retreating" | "attacking" | "charging" | "casting" | "circling" | "death" | "victory";
 
 // ── Standalone preview renderer (used by character.ts and menu.ts) ───────────
 export function drawCharacterPreview(
@@ -32,6 +32,8 @@ export function drawCharacterPreview(
     _drawBerserkerPreview(ctx, color, gt, s);
   } else if (charType === "troll") {
     _drawTrollPreview(ctx, color, s);
+  } else if (charType === "cryo_knight") {
+    _drawKnightPreview(ctx, "#4ac8e8", s); // Cyan cryo knight
   } else {
     _drawKnightPreview(ctx, color, s);
   }
@@ -324,7 +326,7 @@ export class Fighter {
   targetX: number;
   color: string;
   hp: number;
-  readonly maxHp: number;
+  maxHp: number;
   readonly hpFillId: string;
   isFacingRight: boolean;
   readonly width: number;

@@ -14,7 +14,7 @@ const bgOverlay        = document.getElementById("bgOverlay")       as HTMLEleme
 let selectedId: CharId | null = null;
 
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll"];
+const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll", "cryo_knight"];
 
 charIds.forEach(id => {
   const meta = CHAR_META[id];

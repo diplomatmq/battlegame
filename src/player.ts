@@ -1,7 +1,7 @@
 // player.ts — shared data model and localStorage helpers
 
 export type WeaponType = "sword" | "axe" | "staff";
-export type CharId = "knight" | "killer" | "mage" | "necro" | "berserker" | "troll";
+export type CharId = "knight" | "killer" | "mage" | "necro" | "berserker" | "troll" | "cryo_knight";
 
 export interface CharMeta {
   id: CharId;
@@ -56,6 +56,13 @@ export const CHAR_META: Record<CharId, CharMeta> = {
     desc: "\u0421\u0418\u041b\u0410 \u041e\u0420\u0414\u042b",
     color: "#4e7a1e", rgb: "78,122,30",
     weapon: "axe", isKnight: false, maxHp: 450,
+  },
+  cryo_knight: {
+    id: "cryo_knight",
+    name: "CRYO KNIGHT",
+    desc: "АНТИГРАВИТАЦИОННЫЙ ВОИН ХОЛОДА",
+    color: "#4ac8e8", rgb: "74,200,232",
+    weapon: "sword", isKnight: true, maxHp: 1200,
   },
 };
 
