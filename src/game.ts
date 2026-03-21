@@ -1,9 +1,9 @@
 // game.ts — entry point for game.html
 
-import { Fighter, state } from "./fighter.js";
+import { Fighter, state, FighterState } from "./fighter.js";
 import { CryoKnightFighter } from "./cryo-knight-fighter.js";
 import { Particle, DamageText } from "./particles.js";
-import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
+import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon, CharId } from "./player.js";
 // import socket from "./socket";
 // ...
 // socket.emit("play", profile);
@@ -28,8 +28,9 @@ const particles:   Particle[]   = [];
 const damageTexts: DamageText[] = [];
 
 // --- Player data ---
+const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll"];
 const savedCharId = getCharId() ?? "knight";
-const savedNick   = getNick()   ?? "\u0413\u0415\u0420\u041e\u0419";
+const savedNick   = getNick()   ?? "\u0417\u0410\u0429\u0418\u0422\u041d\u0418\u041a";
 const savedAvatar = getAvatar();
 const meta        = CHAR_META[savedCharId];
 
@@ -73,12 +74,7 @@ if (hp2Fill)    hp2Fill.style.background       = enemy.color;
 if (p2AvatarEl) p2AvatarEl.textContent = enemy.name.substring(0, 2);
 
 // --- Fighters ---
-let p1: Fighter;
-if (savedCharId === "cryo_knight") {
-  p1 = new CryoKnightFighter(200, 480, meta.color, "hp-fill-1", true, particles, damageTexts);
-} else {
-  p1 = new Fighter(200, 480, meta.color, "hp-fill-1", true, meta.isKnight, particles, damageTexts);
-}
+const p1 = new CryoKnightFighter(200, 480, meta.color, "hp-fill-1", true, particles, damageTexts);
 p1.charType = savedCharId;
 
 // Apply player stats from equipment/level system
@@ -89,12 +85,7 @@ p1.playerSpd = stats.spd;
 p1.equippedWeaponVisual = getEquippedWeaponVisual();
 
 // Base p2 init (will be overridden if online)
-let p2: Fighter;
-if (enemy.charType === "cryo_knight") {
-  p2 = new CryoKnightFighter(700, 480, enemy.color, "hp-fill-2", false, particles, damageTexts);
-} else {
-  p2 = new Fighter(700, 480, enemy.color, "hp-fill-2", false, false, particles, damageTexts);
-}
+const p2 = new Fighter(700, 480, enemy.color, "hp-fill-2", false, false, particles, damageTexts);
 p2.charType = enemy.charType;
 p2.playerAtk = enemy.atk;
 p2.playerDef = enemy.def;
@@ -191,13 +182,6 @@ function startOnlineGame(opponentData: any, seed: number) {
   }
   if (hp2Fill) hp2Fill.style.background = oppColor;
 
-  if (oppCharType === "cryo_knight") {
-    const oldP2 = p2;
-    p2 = new CryoKnightFighter(oldP2.x, oldP2.y, oppColor, "hp-fill-2", false, particles, damageTexts);
-    p1.setOpponent(p2);
-    p2.setOpponent(p1);
-  }
-
   p2.charType = oppCharType;
   p2.color = oppColor;
   p2.playerAtk = opponentData.atk || 1;
@@ -228,15 +212,19 @@ function playOnline() {
     weaponVisual: p1.equippedWeaponVisual
   };
   
-  // socket.emit("play", profile);
+  // if (socket) socket.emit("play", profile);
 }
 
 /*
-socket.on("startGame", (data: { opponent: string; profile: any; seed: number }) => {
-  isOnline = true;
-  startOnlineGame(data.profile, data.seed);
-});
+if (socket) {
+  socket.on("startGame", (data: { opponent: string; profile: any; seed: number }) => {
+    isOnline = true;
+    startOnlineGame(data.profile, data.seed);
+  });
+}
+*/
 
+/*
 socket.on("waiting", () => {
   isWaiting = true;
   if (p2NameEl) p2NameEl.textContent = "ОЖИДАНИЕ...";
@@ -262,12 +250,14 @@ function update(): void {
         p2.fighterState = "death";
         addXP(50);
         recordFightWon();
-      } else if (p2.hp > 0 && p1.hp <= 0) {
-        p1.fighterState = "death";
-        p2.fighterState = "victory";
       } else {
-        p1.fighterState = "death";
-        p2.fighterState = "death";
+        if (p2.hp > 0 && p1.hp <= 0) {
+          p1.fighterState = "death";
+          p2.fighterState = "victory";
+        } else {
+          p1.fighterState = "death";
+          p2.fighterState = "death";
+        }
       }
     }
   }

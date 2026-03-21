@@ -32,7 +32,7 @@ export function drawCharacterPreview(
     _drawBerserkerPreview(ctx, color, gt, s);
   } else if (charType === "troll") {
     _drawTrollPreview(ctx, color, s);
-  } else if (charType === "cryo_knight") {
+  } else if (charType === "knight") {
     _drawCryoKnightPreview(ctx, color, s);
   } else {
     _drawKnightPreview(ctx, color, s);

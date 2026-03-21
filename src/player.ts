@@ -1,7 +1,7 @@
 // player.ts — shared data model and localStorage helpers
 
 export type WeaponType = "sword" | "axe" | "staff";
-export type CharId = "knight" | "killer" | "mage" | "necro" | "berserker" | "troll" | "cryo_knight";
+export type CharId = "knight" | "killer" | "mage" | "necro" | "berserker" | "troll";
 
 export interface CharMeta {
   id: CharId;
@@ -17,10 +17,10 @@ export interface CharMeta {
 export const CHAR_META: Record<CharId, CharMeta> = {
   knight: {
     id: "knight",
-    name: "\u041f\u0410\u041b\u0410\u0414\u0418\u041d", // ПАЛАДИН
-    desc: "\u0412\u0415\u0422\u0415\u0420\u0410\u041d \u041e\u0420\u0414\u0415\u041d\u0410",
-    color: "#e0e0e0", rgb: "224,224,224",
-    weapon: "sword", isKnight: true, maxHp: 350,
+    name: "CRYO KNIGHT",
+    desc: "АНТИГРАВИТАЦИОННЫЙ ВОИН ХОЛОДА",
+    color: "#4ac8e8", rgb: "74,200,232",
+    weapon: "sword", isKnight: true, maxHp: 1200,
   },
   killer: {
     id: "killer",
@@ -56,13 +56,6 @@ export const CHAR_META: Record<CharId, CharMeta> = {
     desc: "\u0421\u0418\u041b\u0410 \u041e\u0420\u0414\u042b",
     color: "#4e7a1e", rgb: "78,122,30",
     weapon: "axe", isKnight: false, maxHp: 450,
-  },
-  cryo_knight: {
-    id: "cryo_knight",
-    name: "CRYO KNIGHT",
-    desc: "АНТИГРАВИТАЦИОННЫЙ ВОИН ХОЛОДА",
-    color: "#4ac8e8", rgb: "74,200,232",
-    weapon: "sword", isKnight: true, maxHp: 1200,
   },
 };
 
