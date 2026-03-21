@@ -1,7 +1,8 @@
 // character.ts — entry point for character.html
 
-import { CHAR_META, CharId, setCharId, setCoins } from "./player.js";
+import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId, setCharId, setCoins } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
+import { Knight3D } from "./three-knight.js";
 
 const bgCanvas       = document.getElementById("bgCanvas")       as HTMLCanvasElement;
 const viewport         = document.getElementById("cardsViewport")   as HTMLElement;
@@ -22,14 +23,25 @@ charIds.forEach(id => {
   card.id        = `card-${id}`;
   card.dataset.id = id;
 
-  // Canvas preview
-  const cvs = document.createElement("canvas");
-  cvs.width  = 160;
-  cvs.height = 240;
-  {
+  // Visual container
+  const visual = document.createElement("div");
+  visual.className = "char-visual";
+  visual.style.width = "100%";
+  visual.style.height = "240px";
+
+  if (id === "knight") {
+    // 3D Knight
+    setTimeout(() => {
+        new Knight3D(visual);
+    }, 10);
+  } else {
+    // 2D Canvas preview
+    const cvs = document.createElement("canvas");
+    cvs.width  = 160;
+    cvs.height = 240;
     const pctx = cvs.getContext("2d")!;
-    pctx.clearRect(0, 0, cvs.width, cvs.height);
     drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 20, id, meta.color, 0, 0);
+    visual.appendChild(cvs);
   }
 
   const infoBox = document.createElement("div");
@@ -46,7 +58,7 @@ charIds.forEach(id => {
   infoBox.appendChild(nameEl);
   infoBox.appendChild(statEl);
   
-  card.appendChild(cvs);
+  card.appendChild(visual);
   card.appendChild(infoBox);
   
   card.addEventListener("click", () => {

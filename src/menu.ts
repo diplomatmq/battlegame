@@ -2,6 +2,7 @@
 
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
+import { Knight3D } from "./three-knight.js";
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function navigate(url: string): void {
@@ -149,6 +150,15 @@ async function initMenuUI() {
   }
   resizeArena();
   window.addEventListener("resize", resizeArena);
+
+  // 3D Integration
+  const arena3D = document.getElementById("arena3D") as HTMLElement;
+  let knight3D: Knight3D | null = null;
+  
+  if (charId === "knight") {
+    arenaCanvas.style.display = "none";
+    knight3D = new Knight3D(arena3D);
+  }
 
   function drawArena(): void {
     gameTime++;
