@@ -2,7 +2,7 @@
 
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
-import { Knight3D } from "./three-knight.js";
+// import { Knight3D } from "./three-knight.js"; // Removed 3D
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function navigate(url: string): void {
@@ -151,14 +151,7 @@ async function initMenuUI() {
   resizeArena();
   window.addEventListener("resize", resizeArena);
 
-  // 3D Integration
-  const arena3D = document.getElementById("arena3D") as HTMLElement;
-  let knight3D: Knight3D | null = null;
-  
-  if (charId === "knight") {
-    arenaCanvas.style.display = "none";
-    knight3D = new Knight3D(arena3D);
-  }
+  // 3D Integration - REMOVED: High-fidelity 2D only
 
   function drawArena(): void {
     gameTime++;
@@ -186,7 +179,7 @@ async function initMenuUI() {
     arCtx.scale(scale, scale);
     
     const bob = Math.sin(gameTime * 0.04) * 4;
-    drawCharacterPreview(arCtx, 0, 0, charId ?? "knight", meta.color, bob, gameTime);
+    drawCharacterPreview(arCtx, 0, 0, charId as string, meta.color, bob, gameTime);
     arCtx.restore();
 
     requestAnimationFrame(drawArena);

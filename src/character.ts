@@ -2,7 +2,7 @@
 
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId, setCharId, setCoins } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
-import { Knight3D } from "./three-knight.js";
+// import { Knight3D } from "./three-knight.js"; // Removed 3D
 
 const bgCanvas       = document.getElementById("bgCanvas")       as HTMLCanvasElement;
 const viewport         = document.getElementById("cardsViewport")   as HTMLElement;
@@ -14,7 +14,7 @@ const bgOverlay        = document.getElementById("bgOverlay")       as HTMLEleme
 let selectedId: CharId | null = null;
 
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds: CharId[] = ["cryo_knight", "killer", "mage", "necro", "berserker", "troll", "knight"];
+const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll"];
 
 charIds.forEach(id => {
   const meta = CHAR_META[id];
@@ -29,12 +29,8 @@ charIds.forEach(id => {
   visual.style.width = "100%";
   visual.style.height = "240px";
 
-  if (id === "knight" && false) { // Disabled 3D for old knight
-    // 3D Knight
-    setTimeout(() => {
-        new Knight3D(visual);
-    }, 10);
-  } else {
+  // No 3D logic
+  {
     // 2D Canvas preview
     const cvs = document.createElement("canvas");
     cvs.width  = 160;

@@ -83,7 +83,7 @@ export class CryoKnightFighter extends Fighter {
     damageTexts: DamageText[],
   ) {
     super(x, y, color, hpFillId, isFacingRight, true, particles, damageTexts);
-    this.charType = "cryo_knight";
+    this.charType = "knight";
     this.hp = 1200;
     this.maxHp = 1200;
 
