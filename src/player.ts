@@ -17,10 +17,10 @@ export interface CharMeta {
 export const CHAR_META: Record<CharId, CharMeta> = {
   knight: {
     id: "knight",
-    name: "\u041a\u0420\u0418\u041e-\u0420\u042b\u0426\u0410\u0420\u042c",
-    desc: "\u0417\u0410\u0429\u0418\u0422\u041d\u0418\u041a \u041b\u042c\u0414\u0410",
-    color: "#00e5ff", rgb: "0,229,255",
-    weapon: "sword", isKnight: true, maxHp: 320,
+    name: "\u041f\u0410\u041b\u0410\u0414\u0418\u041d", // ПАЛАДИН
+    desc: "\u0412\u0415\u0422\u0415\u0420\u0410\u041d \u041e\u0420\u0414\u0415\u041d\u0410",
+    color: "#e0e0e0", rgb: "224,224,224",
+    weapon: "sword", isKnight: true, maxHp: 350,
   },
   killer: {
     id: "killer",

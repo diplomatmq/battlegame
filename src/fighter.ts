@@ -33,7 +33,7 @@ export function drawCharacterPreview(
   } else if (charType === "troll") {
     _drawTrollPreview(ctx, color, s);
   } else if (charType === "cryo_knight") {
-    _drawKnightPreview(ctx, "#4ac8e8", s); // Cyan cryo knight
+    _drawCryoKnightPreview(ctx, color, s);
   } else {
     _drawKnightPreview(ctx, color, s);
   }
@@ -317,6 +317,83 @@ function _drawBerserkerPreview(ctx: CanvasRenderingContext2D, C: string, gt: num
   
   ctx.fillStyle = "#4a2a1a"; ctx.beginPath(); ctx.roundRect(26, -70, 4, 40, 2); ctx.fill();
   ctx.fillStyle = "#aab"; ctx.beginPath(); ctx.ellipse(31, -60, 8, 12, -0.4, 0, Math.PI*2); ctx.fill();
+}
+
+function _drawCryoKnightPreview(ctx: CanvasRenderingContext2D, _C: string, s: number): void {
+  ctx.save();
+  ctx.scale(s * 0.8, s * 0.8);
+  ctx.translate(0, 0);
+
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.beginPath(); ctx.ellipse(0, 4, 28, 5, 0, 0, Math.PI*2); ctx.fill();
+
+  const t = performance.now() * 0.002;
+  const breath = Math.sin(t * 2) * 1.5;
+
+  ctx.translate(0, breath);
+
+  // Cape
+  ctx.fillStyle = "#0d0d22";
+  ctx.beginPath();
+  ctx.moveTo(-16, -92); ctx.lineTo(4, -90);
+  ctx.quadraticCurveTo(6, -60, 3, -10);
+  ctx.lineTo(-30, -5);
+  ctx.quadraticCurveTo(-28, -50, -16, -92);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(28,28,55,0.55)"; ctx.lineWidth = 0.5; ctx.stroke();
+
+  // Back Arm
+  ctx.fillStyle = "#0b0b1a";
+  ctx.beginPath(); ctx.moveTo(-20, -88); ctx.lineTo(-26, -86); ctx.lineTo(-30, -66); ctx.lineTo(-24, -64); ctx.closePath();
+  ctx.fill();
+
+  // Legs
+  ctx.fillStyle = "#09091a";
+  ctx.beginPath(); ctx.roundRect(-14, -53, 9, 23, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(5, -53, 9, 23, 2); ctx.fill();
+  ctx.fillStyle = "#0b0b1d";
+  ctx.beginPath(); ctx.roundRect(-16, -30, 9, 30, 2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(7, -30, 9, 30, 2); ctx.fill();
+
+  // Torso
+  const tg = ctx.createLinearGradient(0, -90, 0, -53);
+  tg.addColorStop(0, "#101028"); tg.addColorStop(1, "#080816");
+  ctx.fillStyle = tg;
+  ctx.beginPath(); ctx.moveTo(-20, -90); ctx.lineTo(20, -90); ctx.lineTo(22, -78);
+  ctx.quadraticCurveTo(20, -60, 15, -53); ctx.lineTo(-15, -53); ctx.quadraticCurveTo(-20, -60, -22, -78); ctx.closePath();
+  ctx.fill(); ctx.strokeStyle = "#202042"; ctx.lineWidth = 0.6; ctx.stroke();
+
+  // Head
+  const hg = ctx.createLinearGradient(-17, -130, 17, -96);
+  hg.addColorStop(0, "#131128"); hg.addColorStop(1, "#090916");
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.moveTo(-15, -96); ctx.lineTo(-17, -110); ctx.lineTo(-15, -120); ctx.lineTo(-8, -127);
+  ctx.lineTo(0, -130); ctx.lineTo(8, -127); ctx.lineTo(15, -120); ctx.lineTo(17, -110); ctx.lineTo(15, -96); ctx.closePath();
+  ctx.fill(); ctx.strokeStyle = "#202042"; ctx.lineWidth = 0.6; ctx.stroke();
+
+  // Eyes
+  ctx.shadowColor = "#4ac8e8"; ctx.shadowBlur = 10;
+  ctx.fillStyle = "rgba(74,200,232,0.85)";
+  ctx.beginPath(); ctx.ellipse(-5, -109, 3.5, 1.5, 0, 0, 6.283); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5, -109, 3.5, 1.5, 0, 0, 6.283); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Sword Arm
+  ctx.translate(20, -88);
+  ctx.rotate(0.14);
+  ctx.fillStyle = "#171738";
+  ctx.beginPath(); ctx.ellipse(0, 0, 9, 7, 0, Math.PI, 0); ctx.fill();
+  
+  // Sword
+  ctx.translate(0, 38);
+  ctx.fillStyle = "#0b0b1a"; ctx.fillRect(-2, -6, 4, 5);
+  ctx.shadowColor = "rgba(75,185,230,0.3)"; ctx.shadowBlur = 8;
+  const sg = ctx.createLinearGradient(-7, 3, 7, 3);
+  sg.addColorStop(0, "rgba(48,128,168,0.42)"); sg.addColorStop(1, "rgba(48,128,168,0.42)");
+  ctx.fillStyle = sg; ctx.fillRect(-5, 3, 10, 52);
+
+  ctx.restore();
 }
 
 

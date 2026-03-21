@@ -14,7 +14,7 @@ const bgOverlay        = document.getElementById("bgOverlay")       as HTMLEleme
 let selectedId: CharId | null = null;
 
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll", "cryo_knight"];
+const charIds: CharId[] = ["cryo_knight", "killer", "mage", "necro", "berserker", "troll", "knight"];
 
 charIds.forEach(id => {
   const meta = CHAR_META[id];
@@ -29,7 +29,7 @@ charIds.forEach(id => {
   visual.style.width = "100%";
   visual.style.height = "240px";
 
-  if (id === "knight") {
+  if (id === "knight" && false) { // Disabled 3D for old knight
     // 3D Knight
     setTimeout(() => {
         new Knight3D(visual);
