@@ -88,6 +88,7 @@ interface MageRenderOptions {
   stunned: boolean;
   skyCalling: boolean;
   renderSphere?: boolean;
+  renderAmbientAura?: boolean;
 }
 
 interface StaffRenderOptions {
@@ -487,27 +488,29 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   const walkSwing = Math.sin(opts.walkPhase) * 2.5;
   const robeWave = Math.sin(opts.walkPhase * 1.2) * 3.8;
 
-  const auraRadius = 52 + handPower * 24 + staffPower * 18 + ultimatePower * 30;
-  const aura = ctx.createRadialGradient(0, -80, 8, 0, -80, auraRadius);
-  aura.addColorStop(0, rgbaHex(JADE.primary, 0.18 + handPower * 0.18 + ultimatePower * 0.1));
-  aura.addColorStop(0.58, rgbaHex(JADE.deep, 0.12 + staffPower * 0.15));
-  aura.addColorStop(1, rgbaHex(JADE.primary, 0));
-  ctx.fillStyle = aura;
-  ctx.beginPath();
-  ctx.arc(0, -80, auraRadius, 0, Math.PI * 2);
-  ctx.fill();
-
-  for (let i = 0; i < 5; i++) {
-    const phase = opts.auraPhase * (0.85 + i * 0.14) + i * 1.4;
-    const x = Math.cos(phase) * (17 + i * 3);
-    const y = -79 + Math.sin(phase * 1.3) * (8 + i * 1.4);
-    const orb = ctx.createRadialGradient(x, y, 0.1, x, y, 2.8 + handPower * 2 + staffPower * 1.5);
-    orb.addColorStop(0, rgbaHex(JADE.bright, 0.82));
-    orb.addColorStop(1, rgbaHex(JADE.bright, 0));
-    ctx.fillStyle = orb;
+  if (opts.renderAmbientAura !== false) {
+    const auraRadius = 52 + handPower * 24 + staffPower * 18 + ultimatePower * 30;
+    const aura = ctx.createRadialGradient(0, -80, 8, 0, -80, auraRadius);
+    aura.addColorStop(0, rgbaHex(JADE.primary, 0.18 + handPower * 0.18 + ultimatePower * 0.1));
+    aura.addColorStop(0.58, rgbaHex(JADE.deep, 0.12 + staffPower * 0.15));
+    aura.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = aura;
     ctx.beginPath();
-    ctx.arc(x, y, 2.8 + handPower * 2 + staffPower * 1.5, 0, Math.PI * 2);
+    ctx.arc(0, -80, auraRadius, 0, Math.PI * 2);
     ctx.fill();
+
+    for (let i = 0; i < 5; i++) {
+      const phase = opts.auraPhase * (0.85 + i * 0.14) + i * 1.4;
+      const x = Math.cos(phase) * (17 + i * 3);
+      const y = -79 + Math.sin(phase * 1.3) * (8 + i * 1.4);
+      const orb = ctx.createRadialGradient(x, y, 0.1, x, y, 2.8 + handPower * 2 + staffPower * 1.5);
+      orb.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+      orb.addColorStop(1, rgbaHex(JADE.bright, 0));
+      ctx.fillStyle = orb;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.8 + handPower * 2 + staffPower * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   const shadow = ctx.createRadialGradient(0, 4, 4, 0, 4, 32);
@@ -872,6 +875,24 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
 
       drawDiamondCrystal(ctx, handX, handY - 2.4, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
     }
+  }
+}
+
+function drawPreviewFrontAura(ctx: CanvasRenderingContext2D, walkPhase: number, auraPhase: number): void {
+  const ringR = 19 + Math.sin(auraPhase * 0.45) * 1.7;
+  drawRuneCircle(ctx, 0, -79, ringR, auraPhase * 0.16, 0.26);
+
+  for (let i = 0; i < 5; i++) {
+    const phase = auraPhase * (0.9 + i * 0.1) + i * 1.35;
+    const x = Math.cos(phase) * (16 + i * 2.2);
+    const y = -78 + Math.sin(phase * 1.25 + walkPhase * 0.2) * (6.5 + i * 1.2);
+    const g = ctx.createRadialGradient(x, y, 0.1, x, y, 2.6);
+    g.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+    g.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -1516,10 +1537,12 @@ export function drawJadeMagePreview(
     stunned: false,
     skyCalling: false,
     renderSphere: false,
+    renderAmbientAura: false,
   });
 
   // Preview top-layer sphere pass to keep the orb in front in all UI contexts.
   const walkPhase = gameTick * 0.12;
+  drawPreviewFrontAura(ctx, walkPhase, gameTick * 0.07);
   const walkSwing = Math.sin(walkPhase) * 2.5;
   const handLift = -4 + walkSwing * 0.25;
   const handForward = 10;
