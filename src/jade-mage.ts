@@ -1041,6 +1041,7 @@ export class JadeMageFighter extends Fighter {
       stunned: this.stunTimer > 0,
       skyCalling: this.skyBeam?.stage === "buildup",
       renderSphere: false,
+      renderAmbientAura: false,
     });
 
     ctx.restore();
@@ -1058,6 +1059,15 @@ export class JadeMageFighter extends Fighter {
       const total = this.attacks.getDefinition(this.activeCast.type).castFrames;
       castProgress = clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
     }
+
+    // Front-layer rotating aura for Jade Mage in combat.
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    if (!this.isFacingRight) ctx.scale(-1, 1);
+    ctx.translate(0, bob);
+    ctx.rotate(bodyTilt);
+    drawPreviewFrontAura(ctx, walkPhase, this.auraPhase);
+    ctx.restore();
 
     this.drawForegroundHandSphere(ctx, walkPhase, castType, castProgress, bob, bodyTilt);
   }
