@@ -607,13 +607,13 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
 
   const staffMode: StaffRenderOptions["mode"] = ultimateCast ? "ultimate" : staffCast ? "critical" : "idle";
   const staffAngle = ultimateCast
-    ? -0.25 - ultimatePower * 1.1
+    ? 0.25 + ultimatePower * 1.1
     : staffCast
-      ? -0.2 - staffPower * 0.7
-      : -0.1 + Math.sin(opts.walkPhase * 0.6) * 0.05;
+      ? 0.2 + staffPower * 0.7
+      : 0.1 - Math.sin(opts.walkPhase * 0.6) * 0.05;
 
   ctx.save();
-  ctx.translate(-20, -75);
+  ctx.translate(20, -75);
   ctx.rotate(staffAngle);
   ctx.fillStyle = tone("#153628");
   ctx.beginPath();
@@ -639,14 +639,14 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
 
   ctx.fillStyle = tone("#184132");
   ctx.beginPath();
-  ctx.moveTo(14, -77);
-  ctx.quadraticCurveTo(27, -65, 24 + handForward * 0.14, -52 + handLift * 0.2);
-  ctx.quadraticCurveTo(21 + handForward * 0.2, -48 + handLift * 0.25, 15, -53);
-  ctx.quadraticCurveTo(17, -63, 14, -76);
+  ctx.moveTo(-14, -77);
+  ctx.quadraticCurveTo(-27, -65, -24 - handForward * 0.14, -52 + handLift * 0.2);
+  ctx.quadraticCurveTo(-21 - handForward * 0.2, -48 + handLift * 0.25, -15, -53);
+  ctx.quadraticCurveTo(-17, -63, -14, -76);
   ctx.closePath();
   ctx.fill();
 
-  const handX = 23 + handForward;
+  const handX = -23 - handForward;
   const handY = -53 + handLift;
   ctx.fillStyle = tone(JADE.skin);
   ctx.beginPath();
@@ -654,7 +654,7 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.fill();
 
   // Restored signature hand spheres: always visible and bound to hand animation.
-  const handSpherePower = 0.32 + handPower * 0.66 + ultimatePower * 0.22;
+  const handSpherePower = 0.42 + handPower * 0.66 + ultimatePower * 0.22;
   drawHandMagicSpheres(ctx, handX, handY - 0.8, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
 
   if (handCast) {
@@ -679,7 +679,7 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(handX, handY);
-    ctx.quadraticCurveTo(handX + 8, -118, 0, callY);
+    ctx.quadraticCurveTo(handX - 8, -118, 0, callY);
     ctx.stroke();
   }
 
@@ -1301,12 +1301,12 @@ export class JadeMageFighter extends Fighter {
 
   private getHandOrigin(): { x: number; y: number } {
     const dir = this.isFacingRight ? 1 : -1;
-    return { x: this.x + dir * 34, y: this.y - 60 };
+    return { x: this.x + dir * -34, y: this.y - 60 };
   }
 
   private getStaffTipOrigin(): { x: number; y: number } {
     const dir = this.isFacingRight ? 1 : -1;
-    return { x: this.x + dir * -28, y: this.y - 160 };
+    return { x: this.x + dir * 28, y: this.y - 160 };
   }
 
   private velocityToOpponent(fromX: number, fromY: number, speed: number): { vx: number; vy: number } {
