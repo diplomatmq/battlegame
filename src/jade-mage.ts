@@ -87,6 +87,7 @@ interface MageRenderOptions {
   hitFlash: boolean;
   stunned: boolean;
   skyCalling: boolean;
+  renderSphere?: boolean;
 }
 
 interface StaffRenderOptions {
@@ -854,21 +855,23 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
     ctx.fill();
   }
 
-  // Draw sphere and all sphere effects on the top-most character layer.
-  const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
-  drawHandMagicSpheres(ctx, handX, handY - 2.4, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
+  if (opts.renderSphere !== false) {
+    // Draw sphere and all sphere effects on the top-most character layer.
+    const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
+    drawHandMagicSpheres(ctx, handX, handY - 2.4, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
 
-  if (handCast) {
-    const orb = ctx.createRadialGradient(handX, handY - 2.4, 0.8, handX, handY - 2.4, 16 + handPower * 13);
-    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
-    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
-    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
-    ctx.fillStyle = orb;
-    ctx.beginPath();
-    ctx.arc(handX, handY - 2.4, 16 + handPower * 13, 0, Math.PI * 2);
-    ctx.fill();
+    if (handCast) {
+      const orb = ctx.createRadialGradient(handX, handY - 2.4, 0.8, handX, handY - 2.4, 16 + handPower * 13);
+      orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+      orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+      orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+      ctx.fillStyle = orb;
+      ctx.beginPath();
+      ctx.arc(handX, handY - 2.4, 16 + handPower * 13, 0, Math.PI * 2);
+      ctx.fill();
 
-    drawDiamondCrystal(ctx, handX, handY - 2.4, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
+      drawDiamondCrystal(ctx, handX, handY - 2.4, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
+    }
   }
 }
 
@@ -1016,9 +1019,68 @@ export class JadeMageFighter extends Fighter {
       hitFlash: this.animation.state === "hit",
       stunned: this.stunTimer > 0,
       skyCalling: this.skyBeam?.stage === "buildup",
+      renderSphere: false,
     });
 
     ctx.restore();
+    this.drawForegroundHandSphere(ctx, gameTime, castType, castProgress, bob, bodyTilt);
+  }
+
+  private drawForegroundHandSphere(
+    ctx: CanvasRenderingContext2D,
+    gameTime: number,
+    castType: AttackType | null,
+    castProgress: number,
+    bob: number,
+    bodyTilt: number,
+  ): void {
+    const handCast = castType === "normal";
+    const ultimateCast = castType === "ultimate" || this.skyBeam?.stage === "buildup";
+    const handPower = handCast ? castProgress : 0;
+    const ultimatePower = ultimateCast
+      ? castType === "ultimate"
+        ? castProgress
+        : 0.75
+      : 0;
+
+    const walkPhase = this.animation.state === "walk" ? gameTime * 0.32 : gameTime * 0.08;
+    const walkSwing = Math.sin(walkPhase) * 2.5;
+    const handLift = ultimateCast
+      ? -22 - ultimatePower * 36
+      : handCast
+        ? -8 - handPower * 16
+        : -4 + walkSwing * 0.25;
+    const handForward = ultimateCast
+      ? 8 + ultimatePower * 9
+      : handCast
+        ? 20 + handPower * 14
+        : 10;
+
+    const localX = -23 - handForward;
+    const localY = -53 + handLift - 2.4;
+    const c = Math.cos(bodyTilt);
+    const s = Math.sin(bodyTilt);
+    const rotatedX = localX * c - localY * s;
+    const rotatedY = localX * s + localY * c;
+    const dir = this.isFacingRight ? 1 : -1;
+
+    const handX = this.x + rotatedX * dir;
+    const handY = this.y + rotatedY + bob;
+    const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
+
+    drawHandMagicSpheres(ctx, handX, handY, this.auraPhase + walkPhase * 0.23, handSpherePower, this.animation.state === "hit");
+
+    if (!handCast) return;
+
+    const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
+    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
+    ctx.fill();
+    drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, this.animation.state === "hit");
   }
 
   private releaseAttack(type: AttackType): void {
