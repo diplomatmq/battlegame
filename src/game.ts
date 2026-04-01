@@ -1,9 +1,9 @@
 // game.ts — entry point for game.html
 
-import { Fighter, state, FighterState } from "./fighter.js";
-import { CryoKnightFighter } from "./cryo-knight-fighter.js";
+import { Fighter, state } from "./fighter.js";
+import { JadeMageFighter, enforceJadeMageSelection, applyJadeMageUi } from "./jade-mage.js";
 import { Particle, DamageText } from "./particles.js";
-import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon, CharId } from "./player.js";
+import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
 // import socket from "./socket";
 // ...
 // socket.emit("play", profile);
@@ -28,8 +28,8 @@ const particles:   Particle[]   = [];
 const damageTexts: DamageText[] = [];
 
 // --- Player data ---
-const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll"];
-const savedCharId = getCharId() ?? "knight";
+enforceJadeMageSelection();
+const savedCharId = getCharId() ?? "mage";
 const savedNick   = getNick()   ?? "\u0417\u0410\u0429\u0418\u0422\u041d\u0418\u041a";
 const savedAvatar = getAvatar();
 const meta        = CHAR_META[savedCharId];
@@ -53,8 +53,7 @@ const p1AvatarEl = document.getElementById("p1Avatar") as HTMLElement;
 const hp1Fill    = document.getElementById("hp-fill-1") as HTMLElement;
 
 p1NameEl.textContent          = savedNick;
-p1AvatarEl.style.borderColor  = meta.color;
-hp1Fill.style.background      = meta.color;
+applyJadeMageUi(p1AvatarEl, hp1Fill);
 
 if (savedAvatar) {
   p1AvatarEl.innerHTML = `<img src="${savedAvatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
@@ -74,8 +73,7 @@ if (hp2Fill)    hp2Fill.style.background       = enemy.color;
 if (p2AvatarEl) p2AvatarEl.textContent = enemy.name.substring(0, 2);
 
 // --- Fighters ---
-const p1 = new CryoKnightFighter(200, 480, meta.color, "hp-fill-1", true, particles, damageTexts);
-p1.charType = savedCharId;
+const p1 = new JadeMageFighter(200, 480, "hp-fill-1", true, particles, damageTexts);
 
 // Apply player stats from equipment/level system
 const stats = getTotalStats();
@@ -158,7 +156,7 @@ let gameTime  = 0;
 // --- ONLINE GAME LOGIC ---
 let isOnline = false;
 let isWaiting = false;
-let hasStarted = false;
+let hasStarted = true;
 
 function startOnlineGame(opponentData: any, seed: number) {
   isWaiting = false;
@@ -167,8 +165,8 @@ function startOnlineGame(opponentData: any, seed: number) {
   
   if (p2NameEl) p2NameEl.textContent = opponentData.name || "ВРАГ";
   
-  const oppCharType = opponentData.charType || "knight";
-  const oppMeta = CHAR_META[oppCharType as keyof typeof CHAR_META] || CHAR_META["knight"];
+  const oppCharType = opponentData.charType || "mage";
+  const oppMeta = CHAR_META[oppCharType as keyof typeof CHAR_META] || CHAR_META["mage"];
   const oppColor = oppMeta.color;
 
   if (p2AvatarEl) {

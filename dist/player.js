@@ -1,46 +1,11 @@
 // player.ts — shared data model and localStorage helpers
 export const CHAR_META = {
-    knight: {
-        id: "knight",
-        name: "\u041a\u0420\u0418\u041e-\u0420\u042b\u0426\u0410\u0420\u042c",
-        desc: "\u0417\u0410\u0429\u0418\u0422\u041d\u0418\u041a \u041b\u042c\u0414\u0410",
-        color: "#00e5ff", rgb: "0,229,255",
-        weapon: "sword", isKnight: true, maxHp: 320,
-    },
-    killer: {
-        id: "killer",
-        name: "\u0410\u041b\u042b\u0419 \u0423\u0411\u0418\u0419\u0426\u0410",
-        desc: "\u0411\u0415\u0420\u0421\u0415\u0420\u041a \u041a\u0420\u041e\u0412\u0418",
-        color: "#ff0055", rgb: "255,0,85",
-        weapon: "axe", isKnight: false, maxHp: 240,
-    },
     mage: {
         id: "mage",
         name: "\u041d\u0415\u0424\u0420\u0418\u0422 \u041c\u0410\u0413",
-        desc: "\u041c\u0410\u0421\u0422\u0415\u0420 \u0421\u0422\u0418\u0425\u0418\u0419",
-        color: "#00ff88", rgb: "0,255,136",
-        weapon: "staff", isKnight: false, maxHp: 220,
-    },
-    necro: {
-        id: "necro",
-        name: "\u041d\u0415\u041a\u0420\u041e\u041c\u0410\u041d\u0422",
-        desc: "\u0412\u041b\u0410\u0421\u0422\u0415\u041b\u0418\u041d \u0414\u0423\u0428",
-        color: "#ba55ff", rgb: "186,85,255",
-        weapon: "staff", isKnight: false, maxHp: 200,
-    },
-    berserker: {
-        id: "berserker",
-        name: "\u0411\u0415\u0420\u0421\u0415\u0420\u041a\u0415\u0420",
-        desc: "\u042f\u0420\u041e\u0421\u0422\u042c \u041e\u0413\u041d\u042f",
-        color: "#ff6600", rgb: "255,102,0",
-        weapon: "axe", isKnight: false, maxHp: 350,
-    },
-    troll: {
-        id: "troll",
-        name: "\u041e\u0413\u0420-\u0412\u041e\u0418\u041d\u0418\u0422\u0415\u041b\u042c",
-        desc: "\u0421\u0418\u041b\u0410 \u041e\u0420\u0414\u042b",
-        color: "#4e7a1e", rgb: "78,122,30",
-        weapon: "axe", isKnight: false, maxHp: 450,
+        desc: "\u041c\u0410\u0421\u0422\u0415\u0420 \u0418\u0417\u0423\u041c\u0420\u0423\u0414\u041d\u041e\u0419 \u042d\u041d\u0415\u0420\u0413\u0418\u0418",
+        color: "#00e884", rgb: "0,232,132",
+        weapon: "staff", isKnight: false, maxHp: 300,
     },
 };
 export const SHOP_CATALOGUE = [
@@ -116,10 +81,10 @@ export function setNick(v) { localStorage.setItem("playerNick", v); }
 export function getAvatar() { return localStorage.getItem("playerAvatar"); }
 export function setAvatar(v) { localStorage.setItem("playerAvatar", v); }
 export function getCharId() {
-    const v = localStorage.getItem("playerCharacter");
-    return v && v in CHAR_META ? v : null;
+    localStorage.setItem("playerCharacter", "mage");
+    return "mage";
 }
-export function setCharId(v) { localStorage.setItem("playerCharacter", v); }
+export function setCharId(_v) { localStorage.setItem("playerCharacter", "mage"); }
 export function getCoins() { return parseInt(localStorage.getItem("playerCoins") ?? "0", 10); }
 export function setCoins(v) { localStorage.setItem("playerCoins", String(v)); }
 export function getTakenNicks() { return JSON.parse(localStorage.getItem("takenNicks") ?? "[]"); }
@@ -152,8 +117,6 @@ export const ENEMY_ROSTER = [
     { id: "shadow_killer", name: "\u0423\u0411\u0418\u0419\u0426\u0410 \u0422\u0415\u041d\u0415\u0419", charType: "killer", color: "#aa0066", maxHp: 700, atk: 6, def: 1, spd: 6 },
     { id: "stone_giant", name: "\u041a\u0410\u041c\u0415\u041d\u041d\u042b\u0419 \u0413\u0418\u0413\u0410\u041d\u0422", charType: "troll", color: "#776655", maxHp: 1500, atk: 4, def: 5, spd: 1 },
     { id: "blood_knight", name: "\u041a\u0420\u041e\u0412\u0410\u0412\u042b\u0419 \u0420\u042b\u0426\u0410\u0420\u042c", charType: "knight", color: "#cc0022", maxHp: 950, atk: 5, def: 4, spd: 2 },
-    { id: "soul_reaper", name: "\u0416\u041d\u0415\u0426 \u0414\u0423\u0428", charType: "necro", color: "#8800aa", maxHp: 800, atk: 5, def: 2, spd: 4 },
-    { id: "flame_berserker", name: "\u041e\u0413\u041d\u0415\u041d\u041d\u042b\u0419 \u0411\u0415\u0420\u0421\u0415\u0420\u041a", charType: "berserker", color: "#dd4400", maxHp: 1200, atk: 7, def: 2, spd: 3 },
 ];
 export function getRandomEnemy() {
     return ENEMY_ROSTER[Math.floor(Math.random() * ENEMY_ROSTER.length)];

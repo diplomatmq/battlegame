@@ -1,7 +1,7 @@
 // menu.ts — entry point for menu.html
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins } from "./player.js";
-import { drawCharacterPreview } from "./fighter.js";
-import { Knight3D } from "./three-knight.js";
+import { drawJadeMagePreview, enforceJadeMageSelection } from "./jade-mage.js";
+// import { Knight3D } from "./three-knight.js"; // Removed 3D
 // ── Navigation ──────────────────────────────────────────────────────────────
 function navigate(url) {
     const flash = document.getElementById("flash");
@@ -22,6 +22,7 @@ window["goChallenges"] = goChallenges;
 // ── Guard / Telegram auto-fill ─────────────────────────────────────────────────
 let nick = null;
 let charId = null;
+enforceJadeMageSelection();
 async function ensurePlayerFromTelegramIfMissing() {
     nick = getNick();
     charId = getCharId();
@@ -145,13 +146,7 @@ async function initMenuUI() {
     }
     resizeArena();
     window.addEventListener("resize", resizeArena);
-    // 3D Integration
-    const arena3D = document.getElementById("arena3D");
-    let knight3D = null;
-    if (charId === "knight") {
-        arenaCanvas.style.display = "none";
-        knight3D = new Knight3D(arena3D);
-    }
+    // 3D Integration - REMOVED: High-fidelity 2D only
     function drawArena() {
         gameTime++;
         const w = arenaCanvas.width;
@@ -179,7 +174,7 @@ async function initMenuUI() {
         arCtx.translate(w / 2, floorY - 10);
         arCtx.scale(scale, scale);
         const bob = Math.sin(gameTime * 0.04) * 4;
-        drawCharacterPreview(arCtx, 0, 0, charId ?? "knight", meta.color, bob, gameTime);
+        drawJadeMagePreview(arCtx, 0, 0, bob, gameTime);
         arCtx.restore();
         requestAnimationFrame(drawArena);
     }

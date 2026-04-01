@@ -1,166 +1,79 @@
 // character.ts — entry point for character.html
 
-import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId, setCharId, setCoins } from "./player.js";
-import { drawCharacterPreview } from "./fighter.js";
-// import { Knight3D } from "./three-knight.js"; // Removed 3D
+import { CHAR_META, CharId, setCharId, setCoins } from "./player.js";
+import { drawJadeMagePreview, enforceJadeMageSelection } from "./jade-mage.js";
 
 const bgCanvas       = document.getElementById("bgCanvas")       as HTMLCanvasElement;
-const viewport         = document.getElementById("cardsViewport")   as HTMLElement;
-const cardsContainer   = document.getElementById("cardsContainer")  as HTMLElement;
-const btnConfirm       = document.getElementById("btnConfirm")      as HTMLButtonElement;
-const flashEl          = document.getElementById("flash")           as HTMLElement | null;
-const bgOverlay        = document.getElementById("bgOverlay")       as HTMLElement;
+const cardsContainer = document.getElementById("cardsContainer") as HTMLElement | null;
+const btnConfirm     = document.getElementById("btnConfirm")     as HTMLButtonElement;
+const flashEl        = document.getElementById("flash")          as HTMLElement | null;
 
 let selectedId: CharId | null = null;
+enforceJadeMageSelection();
 
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds: CharId[] = ["knight", "killer", "mage", "necro", "berserker", "troll"];
+const charIds: CharId[] = ["mage"];
 
 charIds.forEach(id => {
   const meta = CHAR_META[id];
   const card = document.createElement("div");
   card.className = "char-card";
   card.id        = `card-${id}`;
-  card.dataset.id = id;
 
-  // Visual container
-  const visual = document.createElement("div");
-  visual.className = "char-visual";
-  visual.style.width = "100%";
-  visual.style.height = "240px";
-
-  // No 3D logic
+  // Canvas preview
+  const cvs = document.createElement("canvas");
+  cvs.width  = 120;
+  cvs.height = 180;
   {
-    // 2D Canvas preview
-    const cvs = document.createElement("canvas");
-    cvs.width  = 160;
-    cvs.height = 240;
     const pctx = cvs.getContext("2d")!;
-    drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 20, id, meta.color, 0, 0);
-    visual.appendChild(cvs);
+    pctx.clearRect(0, 0, cvs.width, cvs.height);
+    drawJadeMagePreview(pctx, cvs.width / 2, cvs.height - 10, 0, 0);
   }
 
-  const infoBox = document.createElement("div");
-  infoBox.className = "char-info-box";
-
+  // Name label (encode Cyrillic in meta.name via the unicode escapes already in player.ts)
   const nameEl = document.createElement("div");
   nameEl.className   = "char-name";
   nameEl.textContent = meta.name;
+  nameEl.style.color = meta.color;
 
+  // Stat bar
   const statEl = document.createElement("div");
   statEl.className = "char-stats";
-  statEl.textContent = `\u2665 ${meta.maxHp} HP \u2022 \u2694\ufe0f ${meta.weapon.toUpperCase()}`;
+  statEl.innerHTML =
+    `<div>\u2665 ${meta.maxHp} HP</div>`;
 
-  infoBox.appendChild(nameEl);
-  infoBox.appendChild(statEl);
-  
-  card.appendChild(visual);
-  card.appendChild(infoBox);
-  
-  card.addEventListener("click", () => {
-    card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  });
+  card.appendChild(cvs);
+  card.appendChild(nameEl);
+  card.appendChild(statEl);
+  card.addEventListener("click", () => selectChar(id));
 
-  cardsContainer.appendChild(card);
+  cardsContainer?.appendChild(card);
 });
 
-// ── Theme & Scroll Logic ──────────────────────────────────────────────────────
-function hexToRgb(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r}, ${g}, ${b}`;
+selectChar("mage");
+
+function selectChar(id: CharId): void {
+  selectedId = id;
+  charIds.forEach(cid => {
+    const el = document.getElementById(`card-${cid}`);
+    if (el) el.classList.toggle("selected", cid === id);
+  });
+  btnConfirm.disabled = false;
+  const meta = CHAR_META[id];
+  btnConfirm.style.borderColor = meta.color;
+  btnConfirm.style.color       = meta.color;
+  btnConfirm.style.boxShadow   = `0 0 16px ${meta.color}`;
 }
 
-function updateActiveTheme() {
-  const viewportRect = viewport.getBoundingClientRect();
-  const centerX = viewportRect.left + viewportRect.width / 2;
-  
-  let closestCard: HTMLElement | null = null;
-  let minDistance = Infinity;
-
-  const cards = Array.from(cardsContainer.children) as HTMLElement[];
-  for (const card of cards) {
-    const rect = card.getBoundingClientRect();
-    const cardCenter = rect.left + rect.width / 2;
-    const distance = Math.abs(centerX - cardCenter);
-
-    if (distance < minDistance) {
-      minDistance = distance;
-      closestCard = card;
-    }
-    card.classList.remove("active");
-  }
-
-  if (closestCard) {
-    closestCard.classList.add("active");
-    const id = closestCard.dataset.id as CharId;
-    if (selectedId !== id) {
-      selectedId = id;
-      const meta = CHAR_META[id];
-      const rgb = hexToRgb(meta.color);
-      
-      document.body.style.setProperty("--char-color", meta.color);
-      document.body.style.setProperty("--char-rgb", rgb);
-      
-      btnConfirm.disabled = false;
-    }
-  }
-}
-
-viewport.addEventListener("scroll", () => {
-  requestAnimationFrame(updateActiveTheme);
-}, { passive: true });
-
-// Initial call
-setTimeout(updateActiveTheme, 100);
-
-async function confirmSelect(): Promise<void> {
+function confirmSelect(): void {
   if (!selectedId) return;
   setCharId(selectedId);
   setCoins(100); // starter coins
-
-  try {
-    const { getTelegramUser } = await import("./player.js");
-    const tgUser = getTelegramUser();
-    // Попытка сохранить на сервере, если есть id Telegram
-    if (tgUser && tgUser.id) {
-      await fetch('/api/character', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          telegram_id: String(tgUser.id),
-          character_id: selectedId,
-          faction: 'human' // дефолт
-        })
-      });
-    } else {
-      // Иначе пробуем достать из параметров (если tg= передано в URL)
-      const params = new URLSearchParams(window.location.search);
-      const tgParam = params.get('tg');
-      if (tgParam) {
-        await fetch('/api/character', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            telegram_id: tgParam, 
-            character_id: selectedId,
-            faction: 'human'
-          })
-        });
-      }
-    }
-  } catch(e) { /* ignore backend errors and proceed locally */ }
-
   if (flashEl) {
     flashEl.style.opacity = "1";
-    setTimeout(() => { 
-      console.log("Character: Selection confirmed, redirecting to menu.html");
-      window.location.replace("menu.html"); 
-    }, 300);
+    setTimeout(() => { window.location.href = "menu.html"; }, 300);
   } else {
-    console.log("Character: Selection confirmed (no flash), redirecting to menu.html");
-    window.location.replace("menu.html");
+    window.location.href = "menu.html";
   }
 }
 

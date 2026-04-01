@@ -1,38 +1,28 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script>
-      if (window.Telegram && Telegram.WebApp) {
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-      }
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Battle Realm — Магазин</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
 
         body {
-            background: linear-gradient(145deg, #0a0e1a 0%, #141a2e 50%, #0d1220 100%);
+            background: #0a0308;
             min-height: 100vh;
             width: 100vw;
-            font-family: 'Inter', sans-serif;
-            color: #e0e8ff;
+            font-family: 'Press Start 2P', monospace;
+            color: #c8a040;
             overflow-x: hidden;
             position: relative;
         }
 
-        body::before {
+        body::after {
             content: '';
-            position: fixed;
-            top: -30%; left: -10%;
-            width: 120%; height: 70%;
-            background: radial-gradient(ellipse at 40% 50%, rgba(255,215,0,0.04) 0%, transparent 60%),
-                        radial-gradient(ellipse at 70% 30%, rgba(0,229,255,0.04) 0%, transparent 60%);
-            pointer-events: none; z-index: 0;
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+            pointer-events: none; z-index: 999;
         }
 
         #bgCanvas { position: fixed; inset: 0; z-index: 0; }
@@ -42,56 +32,25 @@
         /* Header */
         .header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 16px 18px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 16px 18px 10px;
+            border-bottom: 3px solid #3a2008;
         }
 
         .back-btn {
-            background: rgba(255,255,255,0.04);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            color: rgba(255,255,255,0.5);
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
-            padding: 10px 16px;
-            cursor: pointer;
-            transition: all 0.3s;
+            background: #160e02; border: 3px solid #3a2008;
+            color: #6b4810; font-family: 'Press Start 2P', monospace;
+            font-size: 9px; padding: 8px 12px; cursor: pointer;
+            box-shadow: 3px 3px 0 #0e0a03; transition: all 0.12s;
         }
-        .back-btn:hover {
-            border-color: rgba(0,229,255,0.3);
-            color: #fff;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(0,229,255,0.1);
-        }
+        .back-btn:hover { border-color: #c8a040; color: #c8a040; transform: translateY(-1px); }
+        .back-btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #0e0a03; }
 
-        .title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 16px;
-            font-weight: 900;
-            background: linear-gradient(135deg, #ffd700, #ffaa00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: 3px;
-        }
+        .title { font-size: 14px; color: #f0c040; text-shadow: 3px 3px 0 #5a2000; letter-spacing: 3px; }
 
-        .coins {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 14px; font-weight: 700; color: #ffd700;
-        }
+        .coins { display: flex; align-items: center; gap: 6px; font-size: 9px; color: #f0c040; }
 
         /* Items grid */
-        .section-title {
-            padding: 18px 18px 10px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 10px;
-            font-weight: 700;
-            color: rgba(255,255,255,0.3);
-            letter-spacing: 4px;
-        }
+        .section-title { padding: 16px 18px 8px; font-size: 8px; color: #6b4810; letter-spacing: 3px; }
 
         .items-grid {
             display: grid; grid-template-columns: 1fr 1fr;
@@ -99,135 +58,63 @@
         }
 
         .shop-item {
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
+            background: #130a01; border: 3px solid #3a2008;
+            box-shadow: 4px 4px 0 #0a0500;
             display: flex; flex-direction: column; align-items: center;
-            padding: 16px 10px; gap: 10px; cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-            position: relative;
+            padding: 14px 10px; gap: 10px; cursor: pointer;
+            transition: all 0.12s; position: relative;
         }
-        .shop-item:hover {
-            border-color: rgba(255,215,0,0.3);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 32px rgba(255,215,0,0.08);
-        }
-        .shop-item.owned {
-            border-color: rgba(0,204,102,0.2);
-            cursor: default;
-        }
-        .shop-item.owned:hover { transform: none; box-shadow: none; }
-        .shop-item.equipped {
-            border-color: rgba(0,204,102,0.4);
-            box-shadow: 0 0 20px rgba(0,204,102,0.1);
-        }
+        .shop-item:hover { border-color: #c8a040; transform: translateY(-2px); box-shadow: 4px 6px 0 #0a0500; }
+        .shop-item:active { transform: translate(3px,3px); box-shadow: 1px 1px 0 #0a0500; }
+        .shop-item.owned { border-color: #1a4020; cursor: default; }
+        .shop-item.owned:hover { transform: none; box-shadow: 4px 4px 0 #0a0500; }
+        .shop-item.equipped { border-color: #00cc66; box-shadow: 4px 4px 0 #0a0500, 0 0 14px rgba(0,204,102,0.4); }
 
-        .item-icon { font-size: 32px; line-height: 1; }
-        .item-name {
-            font-size: 10px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.8);
-            text-align: center;
-            line-height: 1.5;
-        }
-        .item-bonus {
-            font-size: 9px;
-            font-weight: 600;
-            color: #00cc66;
-            text-align: center;
-            line-height: 1.6;
-            min-height: 14px;
-        }
+        .item-icon { font-size: 30px; line-height: 1; }
+        .item-name { font-size: 6px; color: #c8a040; text-align: center; line-height: 1.6; letter-spacing: 1px; }
+        .item-bonus { font-size: 5px; color: #00cc66; text-align: center; line-height: 1.8; min-height: 12px; }
         .item-price {
-            background: rgba(255,215,0,0.08);
-            border: 1px solid rgba(255,215,0,0.2);
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #ffd700;
-            padding: 6px 14px;
+            background: #0e0a03; border: 2px solid #6b4810;
+            font-size: 7px; color: #f0c040; padding: 4px 10px;
         }
         .equip-btn {
-            background: rgba(0,204,102,0.08);
-            border: 1px solid rgba(0,204,102,0.3);
-            border-radius: 8px;
-            color: #00cc66;
-            font-family: 'Inter', sans-serif;
-            font-size: 9px;
-            font-weight: 700;
-            padding: 6px 14px;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: #001a0a; border: 2px solid #00aa55;
+            color: #00cc66; font-family: 'Press Start 2P', monospace;
+            font-size: 5px; padding: 5px 10px; cursor: pointer;
+            box-shadow: 2px 2px 0 #010508; transition: all 0.1s;
         }
-        .equip-btn:hover { background: rgba(0,204,102,0.2); }
-        .equip-btn.is-equipped {
-            background: rgba(255,68,68,0.08);
-            border-color: rgba(255,68,68,0.3);
-            color: #ff6666;
-        }
-        .equip-btn.is-equipped:hover { background: rgba(255,68,68,0.2); }
+        .equip-btn:hover { background: #00aa55; color: #000; }
+        .equip-btn.is-equipped { background: #003a10; border-color: #ff4444; color: #ff6666; }
+        .equip-btn.is-equipped:hover { background: #ff4444; color: #fff; }
 
         /* Stats panel */
         .stats-bar {
-            margin: 14px 14px 0;
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 14px 18px;
+            margin: 12px 14px 0;
+            background: #0d0800; border: 3px solid #3a2008;
+            padding: 10px 14px;
         }
         .stats-row {
             display: flex; justify-content: space-between; align-items: center;
-            gap: 10px; flex-wrap: wrap;
+            gap: 8px; flex-wrap: wrap;
         }
-        #playerLevel {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 11px;
-            font-weight: 700;
-            color: #fff;
-            white-space: nowrap;
-        }
+        #playerLevel { font-size: 7px; color: #f0c040; white-space: nowrap; }
         .xp-track {
-            flex: 1; height: 8px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 4px;
-            border: 1px solid rgba(255,255,255,0.08);
+            flex: 1; height: 8px; background: #130a01;
+            border: 2px solid #3a2008;
             min-width: 60px;
-            overflow: hidden;
         }
-        #xpBar {
-            height: 100%; width: 0%;
-            background: linear-gradient(90deg, #00e5ff, #ba55ff);
-            border-radius: 3px;
-            transition: width 0.3s;
-        }
-        #xpText { font-size: 9px; color: rgba(255,255,255,0.35); font-weight: 500; white-space: nowrap; }
-        #statsPanel {
-            font-size: 11px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.6);
-            letter-spacing: 1px;
-            margin-top: 10px;
-        }
+        #xpBar { height: 100%; width: 0%; background: #c8a040; transition: width 0.3s; }
+        #xpText { font-size: 5px; color: #6b4810; white-space: nowrap; }
+        #statsPanel { font-size: 6px; color: #c8a040; letter-spacing: 1px; margin-top: 8px; }
 
         /* Toast */
         #toast {
             position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
-            background: rgba(255,255,255,0.06);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(0,229,255,0.3);
-            border-radius: 12px;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 12px 24px;
-            box-shadow: 0 8px 32px rgba(0,229,255,0.1);
-            z-index: 200; opacity: 0; transition: opacity 0.3s;
+            background: #160e02; border: 3px solid #c8a040;
+            color: #f0c040; font-family: 'Press Start 2P', monospace;
+            font-size: 7px; padding: 10px 18px;
+            box-shadow: 4px 4px 0 #0e0a03;
+            z-index: 200; opacity: 0; transition: opacity 0.2s;
             pointer-events: none; white-space: nowrap;
         }
 
@@ -238,7 +125,7 @@
     <canvas id="bgCanvas"></canvas>
     <div class="page">
         <div class="header">
-            <button class="back-btn" onclick="window.location.replace('menu.html')">◀ НАЗАД</button>
+            <button class="back-btn" onclick="window.location.href='menu.html'">◀ НАЗАД</button>
             <div class="title">🛒 МАГАЗИН</div>
             <div class="coins">🪙 <span id="coinCount">0</span></div>
         </div>
@@ -264,6 +151,6 @@
 
     <div id="toast"></div>
     <div id="flash"></div>
-    <script type="module" src="dist/shop.js?v=20260320-v1"></script>
+    <script type="module" src="dist/shop.js"></script>
 </body>
 </html>

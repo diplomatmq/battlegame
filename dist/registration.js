@@ -16,7 +16,7 @@ if (getNick() && getCharId()) {
         // set nick + default character
         setNick(username);
         if (!getCharId())
-            setCharId("knight");
+            setCharId("mage");
         // try to get avatar from server endpoint and save
         if (tg.id) {
             try {
