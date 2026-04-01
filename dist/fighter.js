@@ -251,6 +251,7 @@ export class Fighter {
         this.fighterState = "idle";
         this.stateTimer = 0;
         this.attackCooldown = 0;
+        this.stunTimer = 0;
         this.hitTimer = 0;
         this.isKnight = isKnight;
         this.particles = particles;
@@ -261,6 +262,15 @@ export class Fighter {
     updateAI(gameOver) {
         if (this.hp <= 0 || gameOver)
             return;
+        // Generic hard-CC window used by ultimate skills.
+        if (this.stunTimer > 0) {
+            this.stunTimer--;
+            this.fighterState = "casting";
+            this.targetX = this.x;
+            if (this.attackCooldown > 0)
+                this.attackCooldown--;
+            return;
+        }
         if (this.attackCooldown > 0)
             this.attackCooldown--;
         if (this.stateTimer > 0)

@@ -173,6 +173,7 @@ export class Fighter {
   fighterState: FighterState;
   stateTimer: number;
   attackCooldown: number;
+  stunTimer: number;
   hitTimer: number;
   opponent!: Fighter;
   readonly isKnight: boolean;
@@ -201,7 +202,7 @@ export class Fighter {
     this.hpFillId = hpFillId; this.isFacingRight = isFacingRight;
     this.width = 45; this.height = 90;
     this.fighterState = "idle"; this.stateTimer = 0;
-    this.attackCooldown = 0; this.hitTimer = 0;
+    this.attackCooldown = 0; this.stunTimer = 0; this.hitTimer = 0;
     this.isKnight = isKnight;
     this.particles = particles; this.damageTexts = damageTexts;
   }
@@ -211,6 +212,16 @@ export class Fighter {
   // ── Faction-aware AI ────────────────────────────────────────────────────────
   updateAI(gameOver: boolean): void {
     if (this.hp <= 0 || gameOver) return;
+
+    // Generic hard-CC window used by ultimate skills.
+    if (this.stunTimer > 0) {
+      this.stunTimer--;
+      this.fighterState = "casting";
+      this.targetX = this.x;
+      if (this.attackCooldown > 0) this.attackCooldown--;
+      return;
+    }
+
     if (this.attackCooldown > 0) this.attackCooldown--;
     if (this.stateTimer > 0) this.stateTimer--;
 

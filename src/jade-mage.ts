@@ -4,31 +4,33 @@ import { Particle, DamageText } from "./particles.js";
 export const JADE_MAGE_META = {
   id: "mage",
   name: "НЕФРИТ МАГ",
-  desc: "МАСТЕР ИЗУМРУДНОЙ ЭНЕРГИИ",
-  color: "#00e884",
-  rgb: "0,232,132",
+  desc: "ТЕМНЫЙ ВЛАСТЕЛИН ИЗУМРУДНОГО ПЛАМЕНИ",
+  color: "#00c978",
+  rgb: "0,201,120",
   weapon: "staff",
   maxHp: 1000,
 } as const;
 
 const JADE = {
-  primary: "#00e884",
-  bright: "#75ffc2",
-  deep: "#00ad6f",
-  dark: "#0d2b1f",
-  robeOuter: "#123a2b",
-  robeInner: "#1f5a42",
-  robeShadow: "#0b2219",
-  gold: "#d6b96a",
-  metal: "#7b878d",
-  leather: "#6a472a",
-  skin: "#f1d6bb",
-  eye: "#0c5f47",
-  glow: "#7bffd0",
+  primary: "#00c978",
+  bright: "#7cffcb",
+  deep: "#0a7f51",
+  dark: "#081a14",
+  robeOuter: "#102922",
+  robeInner: "#1c4334",
+  robeEdge: "#2f6b53",
+  metal: "#69757c",
+  leather: "#5d3f25",
+  gold: "#b79a59",
+  skin: "#d2b294",
+  eye: "#0c9c67",
+  cold: "#8cf6d3",
 };
 
 type JadeAnimationState = "idle" | "walk" | "attack" | "ultimate" | "hit" | "death";
 type AttackType = "normal" | "critical" | "ultimate";
+type ProjectileStyle = "hand_orb" | "staff_lightning";
+type SkyBeamStage = "buildup" | "impact" | "explosion";
 
 interface AttackDefinition {
   damage: number;
@@ -43,18 +45,6 @@ interface ActiveCast {
   framesLeft: number;
 }
 
-interface JadeProjectile {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  radius: number;
-  life: number;
-  damage: number;
-  type: AttackType;
-  color: string;
-}
-
 interface AttackConfig {
   normal: AttackDefinition;
   critical: AttackDefinition;
@@ -64,39 +54,73 @@ interface AttackConfig {
   ultimateChargePerCritical: number;
 }
 
+interface JadeProjectile {
+  x: number;
+  y: number;
+  lastX: number;
+  lastY: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  life: number;
+  damage: number;
+  type: AttackType;
+  style: ProjectileStyle;
+  color: string;
+  wobble: number;
+}
+
+interface SkyBeamStrike {
+  x: number;
+  groundY: number;
+  damage: number;
+  stage: SkyBeamStage;
+  timer: number;
+  didDamage: boolean;
+}
+
 interface MageRenderOptions {
   walkPhase: number;
   auraPhase: number;
-  castPower: number;
-  ultimatePower: number;
+  castType: AttackType | null;
+  castProgress: number;
+  hitFlash: boolean;
+  stunned: boolean;
+  skyCalling: boolean;
+}
+
+interface StaffRenderOptions {
+  mode: "idle" | "critical" | "ultimate";
+  power: number;
+  auraPhase: number;
   hitFlash: boolean;
 }
 
 const DEFAULT_ATTACK_CONFIG: AttackConfig = {
   normal: {
     damage: 34,
-    castFrames: 14,
-    cooldownFrames: 24,
-    projectileSpeed: 11,
-    projectileRadius: 10,
+    castFrames: 12,
+    cooldownFrames: 22,
+    projectileSpeed: 12,
+    projectileRadius: 8,
   },
   critical: {
-    damage: 72,
+    damage: 82,
     castFrames: 24,
-    cooldownFrames: 62,
-    projectileSpeed: 13,
-    projectileRadius: 14,
+    cooldownFrames: 68,
+    projectileSpeed: 15,
+    projectileRadius: 11,
   },
   ultimate: {
-    damage: 175,
-    castFrames: 52,
-    cooldownFrames: 330,
-    projectileSpeed: 8,
-    projectileRadius: 24,
+    damage: 210,
+    castFrames: 58,
+    cooldownFrames: 380,
+    projectileSpeed: 0,
+    projectileRadius: 0,
   },
-  criticalChance: 0.24,
+  criticalChance: 0.22,
   ultimateChargePerNormal: 16,
-  ultimateChargePerCritical: 28,
+  ultimateChargePerCritical: 30,
 };
 
 class JadeMageAnimationController {
@@ -193,9 +217,13 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
 
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 function rgbaHex(hex: string, alpha: number): string {
   const clean = hex.replace("#", "");
-  if (clean.length !== 6) return `rgba(0,232,132,${alpha})`;
+  if (clean.length !== 6) return `rgba(0,201,120,${alpha})`;
   const r = Number.parseInt(clean.slice(0, 2), 16);
   const g = Number.parseInt(clean.slice(2, 4), 16);
   const b = Number.parseInt(clean.slice(4, 6), 16);
@@ -211,21 +239,20 @@ function drawDiamondCrystal(
   glowStrength: number,
   hitFlash: boolean,
 ): void {
-  const glowRadius = 12 + glowStrength * 22;
-  const halo = ctx.createRadialGradient(x, y, 1, x, y, glowRadius);
-  halo.addColorStop(0, rgbaHex(JADE.glow, 0.42 + glowStrength * 0.32));
-  halo.addColorStop(1, rgbaHex(JADE.glow, 0));
+  const haloRadius = 10 + glowStrength * 20;
+  const halo = ctx.createRadialGradient(x, y, 1, x, y, haloRadius);
+  halo.addColorStop(0, rgbaHex(JADE.bright, 0.4 + glowStrength * 0.35));
+  halo.addColorStop(1, rgbaHex(JADE.bright, 0));
   ctx.fillStyle = halo;
   ctx.beginPath();
-  ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+  ctx.arc(x, y, haloRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  const crystalGrad = ctx.createLinearGradient(x, y - h, x, y + h);
-  crystalGrad.addColorStop(0, hitFlash ? "#ffffff" : JADE.bright);
-  crystalGrad.addColorStop(0.52, hitFlash ? "#ffffff" : JADE.primary);
-  crystalGrad.addColorStop(1, hitFlash ? "#d8fff1" : JADE.deep);
-
-  ctx.fillStyle = crystalGrad;
+  const grad = ctx.createLinearGradient(x, y - h, x, y + h);
+  grad.addColorStop(0, hitFlash ? "#ffffff" : JADE.bright);
+  grad.addColorStop(0.5, hitFlash ? "#ffffff" : JADE.primary);
+  grad.addColorStop(1, hitFlash ? "#d9fff2" : JADE.deep);
+  ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.moveTo(x, y - h);
   ctx.lineTo(x + w, y);
@@ -234,370 +261,430 @@ function drawDiamondCrystal(
   ctx.closePath();
   ctx.fill();
 
-  ctx.strokeStyle = hitFlash ? "#ffffff" : rgbaHex(JADE.bright, 0.95);
-  ctx.lineWidth = 1.1;
-  ctx.stroke();
-
-  ctx.strokeStyle = rgbaHex("#ffffff", 0.7);
-  ctx.lineWidth = 0.85;
-  ctx.beginPath();
-  ctx.moveTo(x - w * 0.45, y - h * 0.18);
-  ctx.quadraticCurveTo(x, y - h * 0.62, x + w * 0.52, y - h * 0.04);
+  ctx.strokeStyle = hitFlash ? "#ffffff" : rgbaHex(JADE.cold, 0.9);
+  ctx.lineWidth = 1;
   ctx.stroke();
 }
 
-function drawStaff(
+function drawRuneCircle(
   ctx: CanvasRenderingContext2D,
-  castPower: number,
-  ultimatePower: number,
-  auraPhase: number,
-  hitFlash: boolean,
+  x: number,
+  y: number,
+  r: number,
+  rotation: number,
+  alpha: number,
 ): void {
-  const shaftGrad = ctx.createLinearGradient(-32, -146, -24, -8);
-  shaftGrad.addColorStop(0, hitFlash ? "#ffffff" : "#7a5937");
-  shaftGrad.addColorStop(0.45, hitFlash ? "#f0f0f0" : "#6a472b");
-  shaftGrad.addColorStop(1, hitFlash ? "#dfdfdf" : "#4f341f");
-
-  ctx.strokeStyle = shaftGrad;
-  ctx.lineWidth = 5.8;
-  ctx.lineCap = "round";
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.strokeStyle = rgbaHex(JADE.cold, alpha);
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
-  ctx.moveTo(-27, -10);
-  ctx.quadraticCurveTo(-33, -76, -30, -143);
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Engraved runes wrapped around the shaft.
-  ctx.strokeStyle = hitFlash ? "#ffffff" : rgbaHex(JADE.gold, 0.82);
-  ctx.lineWidth = 1.2;
-  for (let i = 0; i < 4; i++) {
-    const y = -32 - i * 22;
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
+
+  for (let i = 0; i < 9; i++) {
+    const a = (Math.PI * 2 * i) / 9;
+    const sx = Math.cos(a) * (r * 0.72);
+    const sy = Math.sin(a) * (r * 0.72);
+    const ex = Math.cos(a) * r;
+    const ey = Math.sin(a) * r;
     ctx.beginPath();
-    ctx.arc(-29.4, y, 3.8, Math.PI * 0.2, Math.PI * 1.8);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBattleStaff(ctx: CanvasRenderingContext2D, opts: StaffRenderOptions): void {
+  const modePower = opts.mode === "critical" ? opts.power : opts.mode === "ultimate" ? 0.8 + opts.power * 0.5 : 0.2;
+
+  const shaftGrad = ctx.createLinearGradient(0, -110, 0, 8);
+  shaftGrad.addColorStop(0, opts.hitFlash ? "#ffffff" : "#6f4d2f");
+  shaftGrad.addColorStop(0.45, opts.hitFlash ? "#f0f0f0" : "#54371f");
+  shaftGrad.addColorStop(1, opts.hitFlash ? "#dddddd" : "#3b2616");
+
+  ctx.strokeStyle = shaftGrad;
+  ctx.lineWidth = 5.2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(0, 2);
+  ctx.quadraticCurveTo(-3, -54, 0, -110);
+  ctx.stroke();
+
+  ctx.strokeStyle = opts.hitFlash ? "#ffffff" : rgbaHex(JADE.gold, 0.78);
+  ctx.lineWidth = 1.1;
+  for (let i = 0; i < 4; i++) {
+    const y = -18 - i * 20;
+    ctx.beginPath();
+    ctx.arc(0, y, 3.2, Math.PI * 0.25, Math.PI * 1.75);
     ctx.stroke();
   }
 
-  const headGlow = clamp(castPower * 0.7 + ultimatePower * 0.9, 0, 1);
-
-  ctx.strokeStyle = hitFlash ? "#ffffff" : rgbaHex(JADE.metal, 0.95);
-  ctx.lineWidth = 2.4;
+  ctx.strokeStyle = opts.hitFlash ? "#ffffff" : rgbaHex(JADE.metal, 0.92);
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.moveTo(-31, -143);
-  ctx.quadraticCurveTo(-46, -154, -39, -168);
-  ctx.moveTo(-29, -143);
-  ctx.quadraticCurveTo(-13, -154, -20, -168);
+  ctx.moveTo(0, -110);
+  ctx.quadraticCurveTo(-10, -118, -7, -132);
+  ctx.moveTo(0, -110);
+  ctx.quadraticCurveTo(10, -118, 7, -132);
   ctx.stroke();
 
-  ctx.strokeStyle = hitFlash ? "#ffffff" : rgbaHex(JADE.gold, 0.95);
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = opts.hitFlash ? "#ffffff" : rgbaHex(JADE.gold, 0.92);
+  ctx.lineWidth = 1.4;
   ctx.beginPath();
-  ctx.arc(-29, -170, 9, 0, Math.PI * 2);
+  ctx.arc(0, -133, 7.6, 0, Math.PI * 2);
   ctx.stroke();
 
-  drawDiamondCrystal(ctx, -29, -170, 6.8, 11, headGlow, hitFlash);
+  drawDiamondCrystal(ctx, 0, -133, 5.8, 9.5, modePower, opts.hitFlash);
 
-  const orbitCount = 3;
-  for (let i = 0; i < orbitCount; i++) {
-    const phase = auraPhase * (1.4 + i * 0.18) + (Math.PI * 2 * i) / orbitCount;
-    const ox = -29 + Math.cos(phase) * (10 + i * 2);
-    const oy = -170 + Math.sin(phase) * (6 + i * 1.2);
-    const orb = ctx.createRadialGradient(ox, oy, 0.3, ox, oy, 3.8 + headGlow * 2.2);
-    orb.addColorStop(0, rgbaHex(JADE.bright, 0.95));
-    orb.addColorStop(1, rgbaHex(JADE.bright, 0));
-    ctx.fillStyle = orb;
+  if (opts.mode !== "idle") {
+    const orbs = opts.mode === "ultimate" ? 5 : 3;
+    for (let i = 0; i < orbs; i++) {
+      const phase = opts.auraPhase * (1 + i * 0.11) + i * 1.2;
+      const ox = Math.cos(phase) * (9 + i * 1.6);
+      const oy = -133 + Math.sin(phase) * (5 + i);
+      const g = ctx.createRadialGradient(ox, oy, 0.3, ox, oy, 3.4 + modePower * 2.8);
+      g.addColorStop(0, rgbaHex(JADE.bright, 0.9));
+      g.addColorStop(1, rgbaHex(JADE.bright, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(ox, oy, 3.4 + modePower * 2.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (opts.mode === "critical") {
+    ctx.strokeStyle = rgbaHex(JADE.cold, 0.9);
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) {
+      const sy = -132 + i * 4;
+      ctx.beginPath();
+      ctx.moveTo(0, sy);
+      ctx.lineTo((i % 2 === 0 ? -1 : 1) * (9 + i * 2), sy - 7);
+      ctx.lineTo((i % 2 === 0 ? -1 : 1) * (5 + i), sy - 14);
+      ctx.stroke();
+    }
+  }
+
+  if (opts.mode === "ultimate") {
+    ctx.strokeStyle = rgbaHex(JADE.bright, 0.8);
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.arc(ox, oy, 3.8 + headGlow * 2.2, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(0, -133);
+    ctx.quadraticCurveTo(1.5, -160, 0, -186);
+    ctx.stroke();
   }
 }
 
-function drawMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOptions): void {
-  const walkSwing = Math.sin(opts.walkPhase) * 3.2;
-  const robeWave = Math.sin(opts.walkPhase * 1.2) * 4.2;
+function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOptions): void {
   const tone = (hex: string): string => (opts.hitFlash ? "#ffffff" : hex);
 
-  const auraRadius = 54 + opts.castPower * 28 + opts.ultimatePower * 20;
-  const aura = ctx.createRadialGradient(0, -78, 8, 0, -78, auraRadius);
-  aura.addColorStop(0, rgbaHex(JADE.bright, 0.16 + opts.castPower * 0.18));
-  aura.addColorStop(0.58, rgbaHex(JADE.primary, 0.08 + opts.ultimatePower * 0.15));
+  const handCast = opts.castType === "normal";
+  const staffCast = opts.castType === "critical";
+  const ultimateCast = opts.castType === "ultimate" || opts.skyCalling;
+
+  const handPower = handCast ? opts.castProgress : 0;
+  const staffPower = staffCast ? opts.castProgress : 0;
+  const ultimatePower = ultimateCast ? opts.castProgress : 0;
+
+  const walkSwing = Math.sin(opts.walkPhase) * 2.5;
+  const robeWave = Math.sin(opts.walkPhase * 1.2) * 3.8;
+
+  const auraRadius = 52 + handPower * 24 + staffPower * 18 + ultimatePower * 30;
+  const aura = ctx.createRadialGradient(0, -80, 8, 0, -80, auraRadius);
+  aura.addColorStop(0, rgbaHex(JADE.primary, 0.18 + handPower * 0.18 + ultimatePower * 0.1));
+  aura.addColorStop(0.58, rgbaHex(JADE.deep, 0.12 + staffPower * 0.15));
   aura.addColorStop(1, rgbaHex(JADE.primary, 0));
   ctx.fillStyle = aura;
   ctx.beginPath();
-  ctx.arc(0, -78, auraRadius, 0, Math.PI * 2);
+  ctx.arc(0, -80, auraRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  for (let i = 0; i < 6; i++) {
-    const phase = opts.auraPhase * (0.7 + i * 0.09) + i * 0.9;
-    const x = Math.cos(phase) * (18 + i * 3.4);
-    const y = -72 + Math.sin(phase * 1.4) * (10 + i * 1.5);
-    const mote = ctx.createRadialGradient(x, y, 0.2, x, y, 3 + opts.castPower * 2.5);
-    mote.addColorStop(0, rgbaHex(JADE.bright, 0.85));
-    mote.addColorStop(1, rgbaHex(JADE.bright, 0));
-    ctx.fillStyle = mote;
+  for (let i = 0; i < 5; i++) {
+    const phase = opts.auraPhase * (0.85 + i * 0.14) + i * 1.4;
+    const x = Math.cos(phase) * (17 + i * 3);
+    const y = -79 + Math.sin(phase * 1.3) * (8 + i * 1.4);
+    const orb = ctx.createRadialGradient(x, y, 0.1, x, y, 2.8 + handPower * 2 + staffPower * 1.5);
+    orb.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+    orb.addColorStop(1, rgbaHex(JADE.bright, 0));
+    ctx.fillStyle = orb;
     ctx.beginPath();
-    ctx.arc(x, y, 3 + opts.castPower * 2.5, 0, Math.PI * 2);
+    ctx.arc(x, y, 2.8 + handPower * 2 + staffPower * 1.5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  const shadow = ctx.createRadialGradient(0, 2, 5, 0, 2, 30);
-  shadow.addColorStop(0, "rgba(0,0,0,0.34)");
+  const shadow = ctx.createRadialGradient(0, 4, 4, 0, 4, 32);
+  shadow.addColorStop(0, "rgba(0,0,0,0.38)");
   shadow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = shadow;
   ctx.beginPath();
-  ctx.ellipse(0, 2, 27, 8.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 4, 28, 8.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  drawStaff(ctx, opts.castPower, opts.ultimatePower, opts.auraPhase, opts.hitFlash);
-
-  const cloakBack = ctx.createLinearGradient(-20, -120, -18, 6);
+  const cloakBack = ctx.createLinearGradient(-24, -124, -20, 12);
   cloakBack.addColorStop(0, tone(JADE.dark));
-  cloakBack.addColorStop(1, tone(JADE.robeShadow));
+  cloakBack.addColorStop(1, tone("#06120f"));
   ctx.fillStyle = cloakBack;
   ctx.beginPath();
-  ctx.moveTo(-12, -112);
-  ctx.bezierCurveTo(-45, -86, -43, -36, -24, 8 + robeWave * 0.3);
-  ctx.quadraticCurveTo(-8, 3, -7, -22);
-  ctx.quadraticCurveTo(-9, -74, -5, -110);
+  ctx.moveTo(-12, -116);
+  ctx.bezierCurveTo(-46, -89, -44, -35, -23, 12 + robeWave * 0.2);
+  ctx.quadraticCurveTo(-9, 5, -8, -20);
+  ctx.quadraticCurveTo(-9, -76, -5, -113);
   ctx.closePath();
   ctx.fill();
 
-  const robeOuter = ctx.createLinearGradient(0, -102, 0, 10);
+  const robeOuter = ctx.createLinearGradient(0, -106, 0, 14);
   robeOuter.addColorStop(0, tone(JADE.robeInner));
-  robeOuter.addColorStop(0.5, tone(JADE.robeOuter));
-  robeOuter.addColorStop(1, tone(JADE.robeShadow));
+  robeOuter.addColorStop(0.55, tone(JADE.robeOuter));
+  robeOuter.addColorStop(1, tone(JADE.dark));
   ctx.fillStyle = robeOuter;
   ctx.beginPath();
-  ctx.moveTo(-21, -95);
-  ctx.quadraticCurveTo(-33, -38, -24, 8 + robeWave);
-  ctx.quadraticCurveTo(0, 17, 25, 8 + robeWave * 0.6);
-  ctx.quadraticCurveTo(34, -39, 19, -95);
-  ctx.quadraticCurveTo(0, -108, -21, -95);
+  ctx.moveTo(-22, -98);
+  ctx.quadraticCurveTo(-34, -40, -25, 13 + robeWave);
+  ctx.quadraticCurveTo(0, 23, 26, 11 + robeWave * 0.55);
+  ctx.quadraticCurveTo(35, -41, 20, -98);
+  ctx.quadraticCurveTo(0, -112, -22, -98);
   ctx.closePath();
   ctx.fill();
 
-  const robeInner = ctx.createLinearGradient(0, -98, 0, 8);
-  robeInner.addColorStop(0, tone("#2d7254"));
-  robeInner.addColorStop(1, tone("#194a35"));
-  ctx.fillStyle = robeInner;
-  ctx.beginPath();
-  ctx.moveTo(-13, -90);
-  ctx.quadraticCurveTo(-20, -35, -12, 6 + robeWave * 0.7);
-  ctx.quadraticCurveTo(0, 10, 13, 6 + robeWave * 0.4);
-  ctx.quadraticCurveTo(19, -35, 11, -90);
-  ctx.quadraticCurveTo(0, -98, -13, -90);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = rgbaHex(tone(JADE.deep), 0.55);
-  ctx.lineWidth = 1.05;
+  ctx.strokeStyle = rgbaHex(tone(JADE.robeEdge), 0.52);
+  ctx.lineWidth = 1.1;
   for (let i = 0; i < 4; i++) {
-    const x = -8 + i * 5.3;
+    const x = -8 + i * 5.2;
     ctx.beginPath();
-    ctx.moveTo(x, -86);
-    ctx.quadraticCurveTo(x + Math.sin(opts.walkPhase + i) * 2.6, -42, x + Math.sin(opts.walkPhase + i * 1.2) * 1.8, 2 + robeWave * 0.45);
+    ctx.moveTo(x, -90);
+    ctx.quadraticCurveTo(x + Math.sin(opts.walkPhase + i) * 2.3, -44, x + Math.sin(opts.walkPhase + i * 1.1) * 1.9, 6 + robeWave * 0.35);
     ctx.stroke();
   }
 
-  ctx.fillStyle = tone("#0b1d16");
+  ctx.fillStyle = tone("#07120f");
   ctx.beginPath();
-  ctx.ellipse(-8, 2 + walkSwing * 0.1, 8, 4.2, -0.1, 0, Math.PI * 2);
-  ctx.ellipse(9, 2 - walkSwing * 0.1, 8, 4.2, 0.1, 0, Math.PI * 2);
+  ctx.ellipse(-8, 3 + walkSwing * 0.12, 8, 4, -0.08, 0, Math.PI * 2);
+  ctx.ellipse(9, 3 - walkSwing * 0.12, 8, 4, 0.08, 0, Math.PI * 2);
   ctx.fill();
 
-  const belt = ctx.createLinearGradient(-18, -48, 18, -48);
+  const belt = ctx.createLinearGradient(-18, -47, 18, -47);
   belt.addColorStop(0, tone(JADE.leather));
-  belt.addColorStop(1, tone("#8f6438"));
+  belt.addColorStop(1, tone("#7a512f"));
   ctx.strokeStyle = belt;
   ctx.lineWidth = 7;
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(-16, -48);
-  ctx.quadraticCurveTo(0, -44, 16, -48);
+  ctx.moveTo(-17, -47);
+  ctx.quadraticCurveTo(0, -43, 17, -47);
   ctx.stroke();
 
   ctx.fillStyle = tone(JADE.gold);
   ctx.beginPath();
-  ctx.ellipse(0, -47, 4.8, 4.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -46, 4.9, 3.8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = tone("#6d4b2c");
+  ctx.fillStyle = tone("#583a22");
   ctx.beginPath();
-  ctx.ellipse(-12.5, -40.5, 4.2, 5.2, -0.08, 0, Math.PI * 2);
-  ctx.ellipse(12.5, -40.5, 4.2, 5.2, 0.08, 0, Math.PI * 2);
+  ctx.ellipse(-13, -39.5, 4.1, 5.2, -0.1, 0, Math.PI * 2);
+  ctx.ellipse(13, -39.5, 4.1, 5.2, 0.1, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = tone(JADE.gold);
-  ctx.lineWidth = 1.3;
-  ctx.beginPath();
-  ctx.moveTo(7, -44);
-  ctx.quadraticCurveTo(9, -33, 6, -24);
-  ctx.stroke();
-  drawDiamondCrystal(ctx, 5.4, -22, 2.8, 4.5, 0.2 + opts.castPower * 0.4, opts.hitFlash);
-
-  const torso = ctx.createLinearGradient(0, -96, 0, -42);
-  torso.addColorStop(0, tone("#244f3d"));
-  torso.addColorStop(1, tone("#173626"));
+  const torso = ctx.createLinearGradient(0, -96, 0, -44);
+  torso.addColorStop(0, tone("#173428"));
+  torso.addColorStop(1, tone("#10241c"));
   ctx.fillStyle = torso;
   ctx.beginPath();
-  ctx.moveTo(-13, -92);
-  ctx.quadraticCurveTo(-16, -72, -10, -56);
-  ctx.quadraticCurveTo(0, -50, 10, -56);
-  ctx.quadraticCurveTo(16, -72, 13, -92);
-  ctx.quadraticCurveTo(0, -101, -13, -92);
+  ctx.moveTo(-14, -93);
+  ctx.quadraticCurveTo(-17, -72, -10, -57);
+  ctx.quadraticCurveTo(0, -50, 10, -57);
+  ctx.quadraticCurveTo(17, -72, 14, -93);
+  ctx.quadraticCurveTo(0, -102, -14, -93);
   ctx.closePath();
   ctx.fill();
 
   ctx.strokeStyle = tone(JADE.metal);
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(-11, -90);
-  ctx.quadraticCurveTo(0, -95, 11, -90);
-  ctx.quadraticCurveTo(10, -62, 0, -55);
-  ctx.quadraticCurveTo(-10, -62, -11, -90);
+  ctx.moveTo(-11, -91);
+  ctx.quadraticCurveTo(0, -96, 11, -91);
+  ctx.quadraticCurveTo(10, -63, 0, -56);
+  ctx.quadraticCurveTo(-10, -63, -11, -91);
   ctx.stroke();
 
-  drawDiamondCrystal(ctx, 0, -74, 4.3, 6.8, 0.28 + opts.castPower * 0.5, opts.hitFlash);
+  drawDiamondCrystal(ctx, 0, -74, 4.2, 6.8, 0.3 + handPower * 0.2 + staffPower * 0.2, opts.hitFlash);
 
-  const shoulderGradL = ctx.createLinearGradient(-32, -90, -10, -72);
-  shoulderGradL.addColorStop(0, tone("#93a1a8"));
-  shoulderGradL.addColorStop(1, tone("#59666e"));
-  ctx.fillStyle = shoulderGradL;
+  const shoulderL = ctx.createLinearGradient(-34, -90, -12, -72);
+  shoulderL.addColorStop(0, tone("#7f8b93"));
+  shoulderL.addColorStop(1, tone("#4f5b63"));
+  ctx.fillStyle = shoulderL;
   ctx.beginPath();
-  ctx.ellipse(-20, -83, 12.8, 8.7, -0.18, 0, Math.PI * 2);
+  ctx.ellipse(-20.5, -83, 13, 8.5, -0.2, 0, Math.PI * 2);
   ctx.fill();
 
-  const shoulderGradR = ctx.createLinearGradient(10, -90, 34, -72);
-  shoulderGradR.addColorStop(0, tone("#8f9da5"));
-  shoulderGradR.addColorStop(1, tone("#536067"));
-  ctx.fillStyle = shoulderGradR;
+  const shoulderR = ctx.createLinearGradient(12, -90, 34, -72);
+  shoulderR.addColorStop(0, tone("#7a868d"));
+  shoulderR.addColorStop(1, tone("#4d5860"));
+  ctx.fillStyle = shoulderR;
   ctx.beginPath();
-  ctx.ellipse(20, -82, 12.8, 8.7, 0.2, 0, Math.PI * 2);
+  ctx.ellipse(20.5, -82, 13, 8.5, 0.2, 0, Math.PI * 2);
   ctx.fill();
 
-  drawDiamondCrystal(ctx, -20, -82, 2.8, 4.2, 0.16 + opts.castPower * 0.35, opts.hitFlash);
-  drawDiamondCrystal(ctx, 20, -81, 2.8, 4.2, 0.16 + opts.castPower * 0.35, opts.hitFlash);
+  drawDiamondCrystal(ctx, -20.5, -82, 2.7, 4.2, 0.16 + handPower * 0.2, opts.hitFlash);
+  drawDiamondCrystal(ctx, 20.5, -81.5, 2.7, 4.2, 0.16 + staffPower * 0.2, opts.hitFlash);
 
-  ctx.fillStyle = tone("#1f5a42");
+  ctx.strokeStyle = rgbaHex("#d7e2e9", 0.26);
+  ctx.lineWidth = 0.9;
   ctx.beginPath();
-  ctx.moveTo(-23, -80);
-  ctx.quadraticCurveTo(-30, -66, -25, -48);
-  ctx.quadraticCurveTo(-21, -45, -16, -51);
-  ctx.quadraticCurveTo(-18, -63, -16, -77);
+  ctx.moveTo(-27, -84);
+  ctx.lineTo(-17, -80);
+  ctx.moveTo(16, -83);
+  ctx.lineTo(26, -79);
+  ctx.stroke();
+
+  const staffMode: StaffRenderOptions["mode"] = ultimateCast ? "ultimate" : staffCast ? "critical" : "idle";
+  const staffAngle = ultimateCast
+    ? -0.25 - ultimatePower * 1.1
+    : staffCast
+      ? -0.2 - staffPower * 0.7
+      : -0.1 + Math.sin(opts.walkPhase * 0.6) * 0.05;
+
+  ctx.save();
+  ctx.translate(-20, -75);
+  ctx.rotate(staffAngle);
+  ctx.fillStyle = tone("#153628");
+  ctx.beginPath();
+  ctx.moveTo(-1, -2);
+  ctx.quadraticCurveTo(-8, 15, -6, 28);
+  ctx.quadraticCurveTo(-2, 31, 2, 27);
+  ctx.quadraticCurveTo(1, 13, 3, -1);
+  ctx.closePath();
+  ctx.fill();
+  drawBattleStaff(ctx, { mode: staffMode, power: staffPower + ultimatePower, auraPhase: opts.auraPhase, hitFlash: opts.hitFlash });
+  ctx.restore();
+
+  const handLift = ultimateCast
+    ? -22 - ultimatePower * 36
+    : handCast
+      ? -8 - handPower * 16
+      : -4 + walkSwing * 0.25;
+  const handForward = ultimateCast
+    ? 8 + ultimatePower * 9
+    : handCast
+      ? 20 + handPower * 14
+      : 10;
+
+  ctx.fillStyle = tone("#184132");
+  ctx.beginPath();
+  ctx.moveTo(14, -77);
+  ctx.quadraticCurveTo(27, -65, 24 + handForward * 0.14, -52 + handLift * 0.2);
+  ctx.quadraticCurveTo(21 + handForward * 0.2, -48 + handLift * 0.25, 15, -53);
+  ctx.quadraticCurveTo(17, -63, 14, -76);
   ctx.closePath();
   ctx.fill();
 
+  const handX = 23 + handForward;
+  const handY = -53 + handLift;
+  ctx.fillStyle = tone(JADE.skin);
   ctx.beginPath();
-  ctx.moveTo(21, -78);
-  ctx.quadraticCurveTo(31, -64, 29, -50);
-  ctx.quadraticCurveTo(22, -44, 17, -51);
-  ctx.quadraticCurveTo(19, -62, 17, -76);
-  ctx.closePath();
+  ctx.ellipse(handX, handY, 3.4, 4.1, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = tone(JADE.dark);
+  if (handCast) {
+    const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
+    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
+  }
+
+  if (ultimateCast) {
+    const callY = -158 - ultimatePower * 10;
+    drawRuneCircle(ctx, 0, callY, 14 + ultimatePower * 8, opts.auraPhase * 1.1, 0.58 + ultimatePower * 0.25);
+    drawRuneCircle(ctx, 0, callY, 24 + ultimatePower * 10, -opts.auraPhase * 0.8, 0.35 + ultimatePower * 0.2);
+
+    ctx.strokeStyle = rgbaHex(JADE.cold, 0.72);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(handX, handY);
+    ctx.quadraticCurveTo(handX + 8, -118, 0, callY);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = tone("#070f0d");
   ctx.beginPath();
-  ctx.moveTo(-22, -118);
-  ctx.quadraticCurveTo(-24, -94, -14, -83);
-  ctx.quadraticCurveTo(-2, -89, 8, -83);
-  ctx.quadraticCurveTo(20, -94, 22, -118);
-  ctx.quadraticCurveTo(0, -132, -22, -118);
+  ctx.moveTo(-22, -119);
+  ctx.quadraticCurveTo(-24, -95, -14, -84);
+  ctx.quadraticCurveTo(0, -90, 14, -84);
+  ctx.quadraticCurveTo(24, -95, 22, -119);
+  ctx.quadraticCurveTo(0, -132, -22, -119);
   ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = tone(JADE.skin);
   ctx.beginPath();
-  ctx.ellipse(0, -101, 11.5, 13.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -102, 11.4, 13.2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = tone("#8d6d4e");
+  ctx.strokeStyle = tone("#8c6c51");
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, -104);
-  ctx.quadraticCurveTo(1.5, -100, 0, -96);
+  ctx.moveTo(0, -105);
+  ctx.quadraticCurveTo(1.3, -101, 0, -97);
   ctx.stroke();
 
-  ctx.fillStyle = tone("#fdfefe");
+  ctx.fillStyle = tone("#f5fbf8");
   ctx.beginPath();
-  ctx.ellipse(-3.8, -103.2, 2.5, 1.8, -0.1, 0, Math.PI * 2);
-  ctx.ellipse(3.8, -103.2, 2.5, 1.8, 0.1, 0, Math.PI * 2);
+  ctx.ellipse(-3.9, -103.2, 2.4, 1.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(3.9, -103.2, 2.4, 1.5, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = tone(JADE.eye);
   ctx.beginPath();
-  ctx.ellipse(-3.6, -103.1, 1.1, 1.1, 0, 0, Math.PI * 2);
-  ctx.ellipse(3.9, -103.1, 1.1, 1.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(-3.9, -103.2, 1.2, 1.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(3.9, -103.2, 1.2, 1.2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = tone("#4e3a2b");
+  // Stern, cold expression.
+  ctx.strokeStyle = tone("#2f221a");
+  ctx.lineWidth = 1.45;
+  ctx.beginPath();
+  ctx.moveTo(-8.2, -106.7);
+  ctx.lineTo(-1.6, -107.8);
+  ctx.moveTo(1.6, -107.8);
+  ctx.lineTo(8.2, -106.7);
+  ctx.stroke();
+
+  ctx.strokeStyle = tone("#5a4030");
   ctx.lineWidth = 1.2;
   ctx.beginPath();
-  ctx.moveTo(-7.2, -106.4);
-  ctx.quadraticCurveTo(-4.1, -108.8, -1.4, -106.2);
-  ctx.moveTo(1.4, -106.2);
-  ctx.quadraticCurveTo(4.2, -108.8, 7.2, -106.4);
+  ctx.moveTo(-2.8, -94.1);
+  ctx.lineTo(2.8, -94.3);
   ctx.stroke();
 
-  ctx.strokeStyle = tone("#6f4d34");
-  ctx.lineWidth = 1;
+  // Battle scar on cheek.
+  ctx.strokeStyle = tone("#7a3f3f");
+  ctx.lineWidth = 0.9;
   ctx.beginPath();
-  ctx.moveTo(-3, -94.2);
-  ctx.quadraticCurveTo(0, -92.4, 3, -94.2);
+  ctx.moveTo(6.5, -100.5);
+  ctx.lineTo(4.6, -96.8);
   ctx.stroke();
 
-  ctx.fillStyle = tone("#2d4f3f");
-  ctx.beginPath();
-  ctx.moveTo(-8.5, -92.2);
-  ctx.quadraticCurveTo(0, -87.5, 8.5, -92.2);
-  ctx.quadraticCurveTo(0, -84.7, -8.5, -92.2);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.strokeStyle = tone(JADE.gold);
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(-9.5, -114.5);
-  ctx.quadraticCurveTo(0, -119.4, 9.5, -114.5);
-  ctx.stroke();
-  drawDiamondCrystal(ctx, 0, -120, 2.5, 3.8, 0.1 + opts.castPower * 0.25, opts.hitFlash);
-
-  ctx.fillStyle = tone("#1e5841");
-  ctx.beginPath();
-  ctx.moveTo(16, -76);
-  ctx.quadraticCurveTo(33, -69, 31, -54);
-  ctx.quadraticCurveTo(23, -46, 14.5, -52);
-  ctx.quadraticCurveTo(16.4, -62, 13.8, -74);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = tone(JADE.skin);
-  ctx.beginPath();
-  ctx.ellipse(25.2, -52.2, 3.5, 4.3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  if (opts.castPower > 0.05 || opts.ultimatePower > 0.05) {
-    const orbX = 30;
-    const orbY = -57;
-    const strength = clamp(opts.castPower + opts.ultimatePower * 0.9, 0, 1);
-    const orb = ctx.createRadialGradient(orbX, orbY, 2, orbX, orbY, 15 + strength * 16);
-    orb.addColorStop(0, rgbaHex(JADE.bright, 0.95));
-    orb.addColorStop(0.45, rgbaHex(JADE.primary, 0.6));
-    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
-    ctx.fillStyle = orb;
+  if (opts.stunned) {
+    const frost = ctx.createRadialGradient(0, -86, 8, 0, -86, 50);
+    frost.addColorStop(0, rgbaHex(JADE.cold, 0.12));
+    frost.addColorStop(1, rgbaHex(JADE.cold, 0));
+    ctx.fillStyle = frost;
     ctx.beginPath();
-    ctx.arc(orbX, orbY, 15 + strength * 16, 0, Math.PI * 2);
+    ctx.arc(0, -86, 50, 0, Math.PI * 2);
     ctx.fill();
-
-    drawDiamondCrystal(ctx, orbX, orbY, 4 + strength * 2.8, 6 + strength * 3.8, 0.45 + strength * 0.5, opts.hitFlash);
-
-    ctx.strokeStyle = rgbaHex(JADE.bright, 0.75);
-    ctx.lineWidth = 1.35;
-    for (let i = 0; i < 3; i++) {
-      const phase = opts.auraPhase * (1 + i * 0.26) + i * 1.8;
-      const rx = 11 + i * 4;
-      const ry = 7 + i * 2.4;
-      ctx.beginPath();
-      ctx.ellipse(orbX, orbY, rx, ry, phase, 0, Math.PI * 2);
-      ctx.stroke();
-    }
   }
 }
 
@@ -606,6 +693,7 @@ export class JadeMageFighter extends Fighter {
   private readonly animation = new JadeMageAnimationController();
   private activeCast: ActiveCast | null = null;
   private projectiles: JadeProjectile[] = [];
+  private skyBeam: SkyBeamStrike | null = null;
   private moveVelocity = 0;
   private walkStep = 0;
   private auraPhase = Math.random() * Math.PI * 2;
@@ -630,11 +718,22 @@ export class JadeMageFighter extends Fighter {
     }
 
     this.auraPhase += 0.07;
+
+    if (this.stunTimer > 0) {
+      this.stunTimer--;
+      this.moveVelocity *= 0.78;
+      this.updateProjectiles();
+      this.updateSkyBeam();
+      this.animation.update({ moving: false, casting: false, ultimate: false, hit: true, dead: false });
+      if (this.hitTimer > 0) this.hitTimer--;
+      return;
+    }
+
     this.attacks.tick();
     this.isFacingRight = this.opponent.x > this.x;
 
     const distance = Math.abs(this.x - this.opponent.x);
-    const speed = 1.8 + Math.max(0, this.playerSpd - 1) * 0.18;
+    const speed = 1.85 + Math.max(0, this.playerSpd - 1) * 0.18;
     let isMoving = false;
 
     if (!this.activeCast) {
@@ -642,14 +741,14 @@ export class JadeMageFighter extends Fighter {
         const dir = this.isFacingRight ? -1 : 1;
         this.moveVelocity = dir * speed;
         isMoving = true;
-      } else if (distance > 360) {
+      } else if (distance > 370) {
         const dir = this.isFacingRight ? 1 : -1;
         this.moveVelocity = dir * speed;
         isMoving = true;
       } else {
         const strafeDir = this.isFacingRight ? 1 : -1;
-        this.moveVelocity = strafeDir * Math.sin(this.walkStep * 0.08) * 0.8;
-        isMoving = Math.abs(this.moveVelocity) > 0.15;
+        this.moveVelocity = strafeDir * Math.sin(this.walkStep * 0.08) * 0.75;
+        isMoving = Math.abs(this.moveVelocity) > 0.14;
       }
 
       this.x += this.moveVelocity;
@@ -661,7 +760,7 @@ export class JadeMageFighter extends Fighter {
         const attackType = this.attacks.pickAttack();
         this.activeCast = this.attacks.startCast(attackType);
         this.fighterState = attackType === "ultimate" ? "ultimate_casting" : "casting";
-        this.animation.playOneShot(attackType === "ultimate" ? "ultimate" : "attack", attackType === "ultimate" ? 42 : 14);
+        this.animation.playOneShot(attackType === "ultimate" ? "ultimate" : "attack", attackType === "ultimate" ? 48 : 14);
       }
     } else {
       this.moveVelocity *= 0.65;
@@ -675,20 +774,20 @@ export class JadeMageFighter extends Fighter {
     }
 
     if (Math.random() < 0.05) {
-      const ang = Math.random() * Math.PI * 2;
-      const rad = 18 + Math.random() * 16;
-      const px = this.x + Math.cos(ang) * rad;
-      const py = this.y - 72 + Math.sin(ang) * 14;
-      this.particles.push(new Particle(px, py, JADE.primary, 0.4));
+      const a = Math.random() * Math.PI * 2;
+      const r = 20 + Math.random() * 18;
+      this.particles.push(new Particle(this.x + Math.cos(a) * r, this.y - 80 + Math.sin(a) * 14, JADE.primary, 0.45));
     }
 
     this.updateProjectiles();
+    this.updateSkyBeam();
+
     this.x = Math.max(50, Math.min(850, this.x));
 
     this.animation.update({
       moving: isMoving,
       casting: this.activeCast !== null,
-      ultimate: this.activeCast?.type === "ultimate",
+      ultimate: this.activeCast?.type === "ultimate" || this.skyBeam?.stage === "buildup",
       hit: this.hitTimer > 0,
       dead: false,
     });
@@ -702,6 +801,7 @@ export class JadeMageFighter extends Fighter {
   }
 
   override draw(ctx: CanvasRenderingContext2D, gameTime: number): void {
+    this.drawSkyBeam(ctx, gameTime);
     this.drawProjectiles(ctx, gameTime);
 
     ctx.save();
@@ -710,26 +810,28 @@ export class JadeMageFighter extends Fighter {
     if (!this.isFacingRight) ctx.scale(-1, 1);
 
     const walkPhase = this.animation.state === "walk" ? gameTime * 0.32 : gameTime * 0.08;
-    const bob = Math.sin(gameTime * 0.12) * 2.2;
-    const bodyTilt = this.animation.state === "walk" ? Math.sin(gameTime * 0.18) * 0.045 : 0;
+    const bob = Math.sin(gameTime * 0.12) * 1.9;
+    const bodyTilt = this.animation.state === "walk" ? Math.sin(gameTime * 0.16) * 0.05 : 0;
 
-    let castPower = 0;
-    let ultimatePower = 0;
+    let castType: AttackType | null = null;
+    let castProgress = 0;
     if (this.activeCast) {
+      castType = this.activeCast.type;
       const total = this.attacks.getDefinition(this.activeCast.type).castFrames;
-      castPower = clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
-      if (this.activeCast.type === "ultimate") ultimatePower = castPower;
+      castProgress = clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
     }
 
     ctx.translate(0, bob);
     ctx.rotate(bodyTilt);
 
-    drawMageFigure(ctx, {
+    drawBattleMageFigure(ctx, {
       walkPhase,
       auraPhase: this.auraPhase,
-      castPower,
-      ultimatePower,
+      castType,
+      castProgress,
       hitFlash: this.animation.state === "hit",
+      stunned: this.stunTimer > 0,
+      skyCalling: this.skyBeam?.stage === "buildup",
     });
 
     ctx.restore();
@@ -740,75 +842,150 @@ export class JadeMageFighter extends Fighter {
     const def = this.attacks.getDefinition(type);
     this.attackCooldown = def.cooldownFrames;
 
-    const dir = this.isFacingRight ? 1 : -1;
-    const spawnX = this.x + dir * 30;
-    const spawnY = this.y - 58;
-
     const damageScale = 1 + Math.max(0, this.playerAtk - 1) * 0.16;
     const scaledDamage = Math.floor(def.damage * damageScale);
 
     if (type === "ultimate") {
-      this.spawnUltimateProjectiles(spawnX, spawnY, dir, scaledDamage, def);
-      state.screenShake = 16;
+      this.startSkyBeam(Math.floor(scaledDamage * 1.05));
       return;
     }
 
-    this.projectiles.push({
-      x: spawnX,
-      y: spawnY,
-      vx: def.projectileSpeed * dir,
-      vy: type === "critical" ? -0.2 : 0,
-      radius: def.projectileRadius,
-      life: 95,
-      damage: scaledDamage,
-      type,
-      color: type === "critical" ? JADE.bright : JADE.primary,
-    });
-
-    if (type === "critical") {
+    if (type === "normal") {
+      const hand = this.getHandOrigin();
+      const vel = this.velocityToOpponent(hand.x, hand.y, def.projectileSpeed);
       this.projectiles.push({
-        x: spawnX,
-        y: spawnY + 2.4,
-        vx: def.projectileSpeed * 0.92 * dir,
-        vy: 0.22,
-        radius: def.projectileRadius * 0.78,
-        life: 90,
-        damage: Math.floor(scaledDamage * 0.45),
+        x: hand.x,
+        y: hand.y,
+        lastX: hand.x,
+        lastY: hand.y,
+        vx: vel.vx,
+        vy: vel.vy,
+        radius: def.projectileRadius,
+        life: 88,
+        damage: scaledDamage,
         type,
-        color: JADE.glow,
+        style: "hand_orb",
+        color: JADE.primary,
+        wobble: Math.random() * Math.PI * 2,
       });
+
+      for (let i = 0; i < 8; i++) this.particles.push(new Particle(hand.x, hand.y, JADE.primary, 1.35));
+      return;
     }
 
-    const burstCount = type === "critical" ? 20 : 10;
-    for (let i = 0; i < burstCount; i++) {
-      this.particles.push(new Particle(spawnX, spawnY, JADE.primary, type === "critical" ? 2.4 : 1.55));
+    const staff = this.getStaffTipOrigin();
+    const vel = this.velocityToOpponent(staff.x, staff.y, def.projectileSpeed);
+    this.projectiles.push({
+      x: staff.x,
+      y: staff.y,
+      lastX: staff.x,
+      lastY: staff.y,
+      vx: vel.vx,
+      vy: vel.vy,
+      radius: def.projectileRadius,
+      life: 62,
+      damage: scaledDamage,
+      type,
+      style: "staff_lightning",
+      color: JADE.cold,
+      wobble: Math.random() * Math.PI * 2,
+    });
+
+    for (let i = 0; i < 20; i++) this.particles.push(new Particle(staff.x, staff.y, JADE.bright, 2.25));
+  }
+
+  private startSkyBeam(damage: number): void {
+    const targetX = this.opponent.x;
+    const groundY = this.opponent.y - 58;
+
+    this.skyBeam = {
+      x: targetX,
+      groundY,
+      damage,
+      stage: "buildup",
+      timer: 40,
+      didDamage: false,
+    };
+
+    this.opponent.stunTimer = Math.max(this.opponent.stunTimer, 78);
+    this.opponent.attackCooldown = Math.max(this.opponent.attackCooldown, 78);
+    this.opponent.targetX = this.opponent.x;
+    this.opponent.fighterState = "casting";
+
+    for (let i = 0; i < 22; i++) this.particles.push(new Particle(targetX, 62 + Math.random() * 18, JADE.cold, 2.0));
+  }
+
+  private updateSkyBeam(): void {
+    const beam = this.skyBeam;
+    if (!beam) return;
+
+    if (this.opponent.hp > 0 && beam.stage !== "explosion") {
+      this.opponent.stunTimer = Math.max(this.opponent.stunTimer, 3);
+      this.opponent.attackCooldown = Math.max(this.opponent.attackCooldown, 3);
+      this.opponent.targetX = this.opponent.x;
+      this.opponent.fighterState = "casting";
+    }
+
+    if (beam.stage === "buildup") {
+      beam.timer--;
+
+      if (beam.timer % 2 === 0) {
+        this.particles.push(new Particle(beam.x + (Math.random() - 0.5) * 26, beam.groundY + 12, JADE.cold, 1.8));
+      }
+
+      if (beam.timer <= 0) {
+        beam.stage = "impact";
+        beam.timer = 16;
+        state.screenShake = Math.max(state.screenShake, 24);
+        this.applySkyBeamDamage(beam);
+      }
+      return;
+    }
+
+    if (beam.stage === "impact") {
+      beam.timer--;
+      state.screenShake = Math.max(state.screenShake, 14);
+
+      if (beam.timer % 2 === 0) {
+        for (let i = 0; i < 6; i++) {
+          this.particles.push(new Particle(beam.x + (Math.random() - 0.5) * 22, beam.groundY + (Math.random() - 0.5) * 18, JADE.bright, 3.0));
+        }
+      }
+
+      if (beam.timer <= 0) {
+        beam.stage = "explosion";
+        beam.timer = 22;
+      }
+      return;
+    }
+
+    beam.timer--;
+    if (beam.timer % 3 === 0) {
+      for (let i = 0; i < 5; i++) {
+        this.particles.push(new Particle(beam.x + (Math.random() - 0.5) * 35, beam.groundY + (Math.random() - 0.5) * 22, JADE.primary, 2.4));
+      }
+    }
+
+    if (beam.timer <= 0) {
+      this.skyBeam = null;
     }
   }
 
-  private spawnUltimateProjectiles(
-    x: number,
-    y: number,
-    dir: number,
-    damage: number,
-    def: AttackDefinition,
-  ): void {
-    const spread = [-0.34, -0.16, 0, 0.16, 0.34];
-    for (const [index, ang] of spread.entries()) {
-      this.projectiles.push({
-        x,
-        y,
-        vx: (def.projectileSpeed + 1.6) * dir,
-        vy: ang * 4,
-        radius: def.projectileRadius * (index === 2 ? 1.18 : 0.92),
-        life: 128,
-        damage: Math.floor(damage * (index === 2 ? 1 : 0.66)),
-        type: "ultimate",
-        color: index === 2 ? JADE.bright : JADE.primary,
-      });
+  private applySkyBeamDamage(beam: SkyBeamStrike): void {
+    if (beam.didDamage) return;
+    beam.didDamage = true;
+
+    const dx = Math.abs(this.opponent.x - beam.x);
+    let dealt = beam.damage;
+    if (dx > 72 && dx < 132) dealt = Math.floor(dealt * 0.55);
+    if (dx >= 132) dealt = 0;
+
+    if (dealt > 0) {
+      this.opponent.takeDamage(dealt, JADE.cold);
     }
 
-    for (let i = 0; i < 34; i++) {
-      this.particles.push(new Particle(x, y, JADE.primary, 3.1));
+    for (let i = 0; i < 38; i++) {
+      this.particles.push(new Particle(beam.x + (Math.random() - 0.5) * 28, beam.groundY + (Math.random() - 0.5) * 18, JADE.bright, 3.4));
     }
   }
 
@@ -817,103 +994,216 @@ export class JadeMageFighter extends Fighter {
 
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
+      p.lastX = p.x;
+      p.lastY = p.y;
+
       p.x += p.vx;
       p.y += p.vy;
-      p.life--;
-
-      if (p.life % 2 === 0) {
-        this.particles.push(new Particle(p.x, p.y, p.color, p.type === "ultimate" ? 2.2 : 1.35));
+      if (p.style === "hand_orb") {
+        p.y += Math.sin((p.life + p.wobble) * 0.18) * 0.12;
       }
+      p.life--;
 
       if (p.life <= 0) {
         this.projectiles.splice(i, 1);
         continue;
       }
 
+      if (p.life % 2 === 0) {
+        this.particles.push(new Particle(p.x, p.y, p.color, p.style === "staff_lightning" ? 1.9 : 1.2));
+      }
+
+      const hitPad = p.style === "staff_lightning" ? 10 : 0;
       const hit =
-        Math.abs(p.x - this.opponent.x) < (32 + p.radius) &&
-        Math.abs(p.y - (this.opponent.y - 56)) < (42 + p.radius);
+        Math.abs(p.x - this.opponent.x) < (30 + p.radius + hitPad) &&
+        Math.abs(p.y - (this.opponent.y - 56)) < (40 + p.radius + hitPad);
 
       if (!hit) continue;
 
       this.opponent.takeDamage(p.damage, p.color);
 
-      const impactBurst = p.type === "ultimate" ? 46 : p.type === "critical" ? 28 : 16;
-      for (let k = 0; k < impactBurst; k++) {
-        this.particles.push(new Particle(this.opponent.x, this.opponent.y - 58, p.color, p.type === "ultimate" ? 3.4 : 2.2));
+      const burst = p.style === "staff_lightning" ? 32 : 18;
+      for (let k = 0; k < burst; k++) {
+        this.particles.push(new Particle(this.opponent.x, this.opponent.y - 58, p.color, p.style === "staff_lightning" ? 2.8 : 2.0));
       }
 
-      if (p.type === "ultimate") {
-        state.screenShake = 22;
-      } else if (p.type === "critical") {
-        state.screenShake = Math.max(state.screenShake, 11);
-      }
-
+      state.screenShake = Math.max(state.screenShake, p.style === "staff_lightning" ? 13 : 8);
       this.projectiles.splice(i, 1);
     }
   }
 
   private drawProjectiles(ctx: CanvasRenderingContext2D, gameTime: number): void {
     for (const p of this.projectiles) {
-      const pulse = 0.78 + Math.sin((gameTime + p.x) * 0.16) * 0.22;
-      const r = p.radius * pulse;
+      if (p.style === "hand_orb") {
+        const pulse = 0.78 + Math.sin((gameTime + p.x) * 0.17) * 0.22;
+        const r = p.radius * pulse;
 
-      const halo = ctx.createRadialGradient(p.x, p.y, r * 0.18, p.x, p.y, r * 2.8);
-      halo.addColorStop(0, rgbaHex(p.color, 0.9));
-      halo.addColorStop(0.55, rgbaHex(JADE.primary, p.type === "ultimate" ? 0.5 : 0.32));
-      halo.addColorStop(1, rgbaHex(JADE.primary, 0));
+        const halo = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r * 2.8);
+        halo.addColorStop(0, rgbaHex(JADE.bright, 0.88));
+        halo.addColorStop(0.6, rgbaHex(JADE.primary, 0.45));
+        halo.addColorStop(1, rgbaHex(JADE.primary, 0));
+
+        ctx.save();
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 2.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        const core = ctx.createRadialGradient(p.x - r * 0.2, p.y - r * 0.2, 0.3, p.x, p.y, r * 1.15);
+        core.addColorStop(0, "rgba(255,255,255,0.9)");
+        core.addColorStop(0.45, rgbaHex(JADE.bright, 0.9));
+        core.addColorStop(1, rgbaHex(JADE.primary, 0.35));
+        ctx.fillStyle = core;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        const tx = p.x - p.vx * 2.1;
+        const ty = p.y - p.vy * 2.1;
+        const tail = ctx.createLinearGradient(p.x, p.y, tx, ty);
+        tail.addColorStop(0, rgbaHex(JADE.primary, 0.68));
+        tail.addColorStop(1, rgbaHex(JADE.primary, 0));
+        ctx.fillStyle = tail;
+        ctx.beginPath();
+        ctx.moveTo(p.x + p.vy * 0.22, p.y - p.vx * 0.22);
+        ctx.quadraticCurveTo((p.x + tx) * 0.5, (p.y + ty) * 0.5, tx - p.vy * 0.58, ty + p.vx * 0.58);
+        ctx.quadraticCurveTo((p.x + tx) * 0.5, (p.y + ty) * 0.5, p.x - p.vy * 0.22, p.y + p.vx * 0.22);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        continue;
+      }
 
       ctx.save();
-      ctx.globalAlpha = p.type === "ultimate" ? 0.92 : 0.88;
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 2.8, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.lineCap = "round";
 
-      const core = ctx.createRadialGradient(p.x - r * 0.2, p.y - r * 0.2, 0.2, p.x, p.y, r * 1.2);
-      core.addColorStop(0, "rgba(255,255,255,0.92)");
-      core.addColorStop(0.5, rgbaHex(JADE.bright, 0.95));
-      core.addColorStop(1, rgbaHex(p.color, 0.35));
+      const seg = 6;
+      const dx = p.x - p.lastX;
+      const dy = p.y - p.lastY;
+
+      ctx.strokeStyle = rgbaHex(JADE.cold, 0.82);
+      ctx.lineWidth = 2.3;
+      ctx.beginPath();
+      ctx.moveTo(p.lastX, p.lastY);
+      for (let i = 1; i < seg; i++) {
+        const t = i / seg;
+        const jx = (Math.random() - 0.5) * 8;
+        const jy = (Math.random() - 0.5) * 8;
+        ctx.lineTo(p.lastX + dx * t + jx, p.lastY + dy * t + jy);
+      }
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = rgbaHex("#ffffff", 0.7);
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(p.lastX, p.lastY);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+
+      const core = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, p.radius * 1.8);
+      core.addColorStop(0, rgbaHex("#ffffff", 0.92));
+      core.addColorStop(0.5, rgbaHex(JADE.bright, 0.86));
+      core.addColorStop(1, rgbaHex(JADE.primary, 0));
       ctx.fillStyle = core;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 1.12, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, p.radius * 1.8, 0, Math.PI * 2);
       ctx.fill();
-
-      const tx = p.x - p.vx * 2.5;
-      const ty = p.y - p.vy * 2.5;
-      const tailGrad = ctx.createLinearGradient(p.x, p.y, tx, ty);
-      tailGrad.addColorStop(0, rgbaHex(p.color, 0.7));
-      tailGrad.addColorStop(1, rgbaHex(p.color, 0));
-      ctx.fillStyle = tailGrad;
-      ctx.beginPath();
-      ctx.moveTo(p.x + p.vy * 0.2, p.y - p.vx * 0.2);
-      ctx.quadraticCurveTo((p.x + tx) * 0.5, (p.y + ty) * 0.5, tx - p.vy * 0.6, ty + p.vx * 0.6);
-      ctx.quadraticCurveTo((p.x + tx) * 0.5, (p.y + ty) * 0.5, p.x - p.vy * 0.2, p.y + p.vx * 0.2);
-      ctx.closePath();
-      ctx.fill();
-
-      if (p.type !== "normal") {
-        ctx.strokeStyle = rgbaHex(JADE.bright, p.type === "ultimate" ? 0.8 : 0.62);
-        ctx.lineWidth = p.type === "ultimate" ? 1.55 : 1.1;
-        const rot = gameTime * 0.09 + p.life * 0.04;
-        ctx.beginPath();
-        ctx.ellipse(p.x, p.y, r * 1.65, r * 0.95, rot, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      if (p.type === "ultimate") {
-        ctx.strokeStyle = rgbaHex("#ffffff", 0.55);
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(p.x - r * 1.8, p.y);
-        ctx.lineTo(p.x + r * 1.8, p.y);
-        ctx.moveTo(p.x, p.y - r * 1.8);
-        ctx.lineTo(p.x, p.y + r * 1.8);
-        ctx.stroke();
-      }
 
       ctx.restore();
     }
+  }
+
+  private drawSkyBeam(ctx: CanvasRenderingContext2D, gameTime: number): void {
+    const beam = this.skyBeam;
+    if (!beam) return;
+
+    const topY = 0;
+
+    if (beam.stage === "buildup") {
+      const t = clamp(1 - beam.timer / 40, 0, 1);
+      const width = 9 + t * 12;
+
+      drawRuneCircle(ctx, beam.x, 96, 22 + t * 8, gameTime * 0.06, 0.46 + t * 0.35);
+      drawRuneCircle(ctx, beam.x, beam.groundY + 10, 16 + t * 8, -gameTime * 0.07, 0.52 + t * 0.35);
+
+      const col = ctx.createLinearGradient(beam.x, topY, beam.x, beam.groundY + 12);
+      col.addColorStop(0, rgbaHex(JADE.cold, 0.08 + t * 0.2));
+      col.addColorStop(0.45, rgbaHex(JADE.primary, 0.14 + t * 0.24));
+      col.addColorStop(1, rgbaHex(JADE.primary, 0));
+      ctx.fillStyle = col;
+      ctx.fillRect(beam.x - width, topY, width * 2, beam.groundY + 12 - topY);
+      return;
+    }
+
+    if (beam.stage === "impact") {
+      const pulse = 0.82 + Math.sin(gameTime * 0.55) * 0.18;
+      const width = 34 * pulse;
+
+      const beamGrad = ctx.createLinearGradient(beam.x - width, topY, beam.x + width, topY);
+      beamGrad.addColorStop(0, rgbaHex(JADE.primary, 0));
+      beamGrad.addColorStop(0.26, rgbaHex(JADE.primary, 0.8));
+      beamGrad.addColorStop(0.5, rgbaHex("#ffffff", 0.9));
+      beamGrad.addColorStop(0.74, rgbaHex(JADE.bright, 0.82));
+      beamGrad.addColorStop(1, rgbaHex(JADE.primary, 0));
+
+      ctx.fillStyle = beamGrad;
+      ctx.fillRect(beam.x - width, topY, width * 2, beam.groundY + 14 - topY);
+
+      const core = ctx.createLinearGradient(beam.x - width * 0.35, topY, beam.x + width * 0.35, topY);
+      core.addColorStop(0, rgbaHex("#ffffff", 0));
+      core.addColorStop(0.5, rgbaHex("#ffffff", 0.8));
+      core.addColorStop(1, rgbaHex("#ffffff", 0));
+      ctx.fillStyle = core;
+      ctx.fillRect(beam.x - width * 0.35, topY, width * 0.7, beam.groundY + 10 - topY);
+
+      const impact = ctx.createRadialGradient(beam.x, beam.groundY + 6, 6, beam.x, beam.groundY + 6, 78);
+      impact.addColorStop(0, rgbaHex("#ffffff", 0.88));
+      impact.addColorStop(0.35, rgbaHex(JADE.bright, 0.8));
+      impact.addColorStop(1, rgbaHex(JADE.primary, 0));
+      ctx.fillStyle = impact;
+      ctx.beginPath();
+      ctx.arc(beam.x, beam.groundY + 6, 78, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    const t = clamp(1 - beam.timer / 22, 0, 1);
+    const radius = 28 + t * 120;
+
+    const exp = ctx.createRadialGradient(beam.x, beam.groundY + 8, 8, beam.x, beam.groundY + 8, radius);
+    exp.addColorStop(0, rgbaHex("#ffffff", 0.9));
+    exp.addColorStop(0.4, rgbaHex(JADE.bright, 0.62));
+    exp.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = exp;
+    ctx.beginPath();
+    ctx.arc(beam.x, beam.groundY + 8, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = rgbaHex(JADE.cold, 0.64 - t * 0.35);
+    ctx.lineWidth = 2.1;
+    ctx.beginPath();
+    ctx.arc(beam.x, beam.groundY + 8, radius * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  private getHandOrigin(): { x: number; y: number } {
+    const dir = this.isFacingRight ? 1 : -1;
+    return { x: this.x + dir * 34, y: this.y - 60 };
+  }
+
+  private getStaffTipOrigin(): { x: number; y: number } {
+    const dir = this.isFacingRight ? 1 : -1;
+    return { x: this.x + dir * -28, y: this.y - 160 };
+  }
+
+  private velocityToOpponent(fromX: number, fromY: number, speed: number): { vx: number; vy: number } {
+    const tx = this.opponent.x;
+    const ty = this.opponent.y - 60;
+    const dx = tx - fromX;
+    const dy = ty - fromY;
+    const len = Math.hypot(dx, dy) || 1;
+    return { vx: (dx / len) * speed, vy: (dy / len) * speed };
   }
 }
 
@@ -928,12 +1218,14 @@ export function drawJadeMagePreview(
   ctx.translate(cx, by + bob);
   ctx.scale(0.95, 0.95);
 
-  drawMageFigure(ctx, {
-    walkPhase: gameTick * 0.1,
+  drawBattleMageFigure(ctx, {
+    walkPhase: gameTick * 0.12,
     auraPhase: gameTick * 0.07,
-    castPower: 0.26 + Math.sin(gameTick * 0.045) * 0.08,
-    ultimatePower: 0,
+    castType: null,
+    castProgress: 0,
     hitFlash: false,
+    stunned: false,
+    skyCalling: false,
   });
 
   ctx.restore();
