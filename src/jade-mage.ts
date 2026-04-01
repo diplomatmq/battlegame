@@ -1023,6 +1023,21 @@ export class JadeMageFighter extends Fighter {
     });
 
     ctx.restore();
+  }
+
+  drawGlobalOverlay(ctx: CanvasRenderingContext2D, gameTime: number): void {
+    const walkPhase = this.animation.state === "walk" ? gameTime * 0.32 : gameTime * 0.08;
+    const bob = Math.sin(gameTime * 0.12) * 1.9;
+    const bodyTilt = this.animation.state === "walk" ? Math.sin(gameTime * 0.16) * 0.05 : 0;
+
+    let castType: AttackType | null = null;
+    let castProgress = 0;
+    if (this.activeCast) {
+      castType = this.activeCast.type;
+      const total = this.attacks.getDefinition(this.activeCast.type).castFrames;
+      castProgress = clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
+    }
+
     this.drawForegroundHandSphere(ctx, walkPhase, castType, castProgress, bob, bodyTilt);
   }
 
