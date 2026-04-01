@@ -302,6 +302,67 @@ function drawRuneCircle(
   ctx.restore();
 }
 
+function drawHandMagicSpheres(
+  ctx: CanvasRenderingContext2D,
+  handX: number,
+  handY: number,
+  auraPhase: number,
+  power: number,
+  hitFlash: boolean,
+): void {
+  const strength = clamp(power, 0, 1.2);
+  const coreRadius = lerp(3.4, 5.8, strength);
+  const glowRadius = lerp(12, 24, strength);
+  const orbitRadius = lerp(5.5, 9.5, strength);
+
+  const palmGlow = ctx.createRadialGradient(handX, handY, 0.6, handX, handY, glowRadius);
+  palmGlow.addColorStop(0, rgbaHex(hitFlash ? "#ffffff" : JADE.bright, 0.9));
+  palmGlow.addColorStop(0.48, rgbaHex(hitFlash ? "#ffffff" : JADE.primary, 0.5));
+  palmGlow.addColorStop(1, rgbaHex(JADE.primary, 0));
+  ctx.fillStyle = palmGlow;
+  ctx.beginPath();
+  ctx.arc(handX, handY, glowRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  const core = ctx.createRadialGradient(handX - 1.2, handY - 1.1, 0.4, handX, handY, coreRadius * 1.8);
+  core.addColorStop(0, "rgba(255,255,255,0.95)");
+  core.addColorStop(0.5, rgbaHex(hitFlash ? "#ffffff" : JADE.bright, 0.88));
+  core.addColorStop(1, rgbaHex(JADE.primary, 0.35));
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(handX, handY, coreRadius * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  for (let i = 0; i < 3; i++) {
+    const phase = auraPhase * 1.55 + i * ((Math.PI * 2) / 3);
+    const ox = handX + Math.cos(phase) * orbitRadius;
+    const oy = handY - 1 + Math.sin(phase * 1.2) * (orbitRadius * 0.42);
+    const r = 1.6 + strength * 0.85 + Math.sin(auraPhase * 2.1 + i) * 0.2;
+
+    const orb = ctx.createRadialGradient(ox, oy, 0.2, ox, oy, r * 2.5);
+    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+    orb.addColorStop(0.55, rgbaHex(JADE.bright, 0.82));
+    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(ox, oy, r * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  for (let i = 0; i < 5; i++) {
+    const phase = auraPhase * 1.1 + i * 1.26;
+    const px = handX + Math.cos(phase) * (orbitRadius + 4 + (i % 2) * 1.5);
+    const py = handY + Math.sin(phase * 1.25) * (orbitRadius * 0.55 + i * 0.15) - 2;
+    const spark = ctx.createRadialGradient(px, py, 0.1, px, py, 1.9 + strength * 0.9);
+    spark.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+    spark.addColorStop(1, rgbaHex(JADE.bright, 0));
+    ctx.fillStyle = spark;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.9 + strength * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawBattleStaff(ctx: CanvasRenderingContext2D, opts: StaffRenderOptions): void {
   const modePower = opts.mode === "critical" ? opts.power : opts.mode === "ultimate" ? 0.8 + opts.power * 0.5 : 0.2;
 
@@ -592,6 +653,10 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.ellipse(handX, handY, 3.4, 4.1, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Restored signature hand spheres: always visible and bound to hand animation.
+  const handSpherePower = 0.32 + handPower * 0.66 + ultimatePower * 0.22;
+  drawHandMagicSpheres(ctx, handX, handY - 0.8, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
+
   if (handCast) {
     const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
     orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
@@ -630,43 +695,90 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
 
   ctx.fillStyle = tone(JADE.skin);
   ctx.beginPath();
-  ctx.ellipse(0, -102, 11.4, 13.2, 0, 0, Math.PI * 2);
+  const faceGrad = ctx.createLinearGradient(0, -116, 0, -86);
+  faceGrad.addColorStop(0, tone("#dcc1a6"));
+  faceGrad.addColorStop(0.58, tone(JADE.skin));
+  faceGrad.addColorStop(1, tone("#b78f72"));
+  ctx.fillStyle = faceGrad;
+  ctx.ellipse(0, -102, 11.3, 13.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const cheekShade = ctx.createRadialGradient(-5.5, -99, 0.2, -5.5, -99, 4.4);
+  cheekShade.addColorStop(0, rgbaHex(tone("#a47d62"), 0.24));
+  cheekShade.addColorStop(1, rgbaHex(tone("#a47d62"), 0));
+  ctx.fillStyle = cheekShade;
+  ctx.beginPath();
+  ctx.arc(-5.5, -99, 4.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  const cheekShadeR = ctx.createRadialGradient(5.5, -99, 0.2, 5.5, -99, 4.4);
+  cheekShadeR.addColorStop(0, rgbaHex(tone("#a47d62"), 0.24));
+  cheekShadeR.addColorStop(1, rgbaHex(tone("#a47d62"), 0));
+  ctx.fillStyle = cheekShadeR;
+  ctx.beginPath();
+  ctx.arc(5.5, -99, 4.4, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.strokeStyle = tone("#8c6c51");
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.05;
   ctx.beginPath();
-  ctx.moveTo(0, -105);
-  ctx.quadraticCurveTo(1.3, -101, 0, -97);
+  ctx.moveTo(0, -105.2);
+  ctx.quadraticCurveTo(1.2, -101.4, -0.15, -98.1);
+  ctx.moveTo(-0.1, -98.3);
+  ctx.quadraticCurveTo(0.6, -97.5, 1.5, -98.1);
   ctx.stroke();
 
-  ctx.fillStyle = tone("#f5fbf8");
+  const eyeY = -103.2;
+  ctx.fillStyle = tone("#f1faf6");
   ctx.beginPath();
-  ctx.ellipse(-3.9, -103.2, 2.4, 1.5, 0, 0, Math.PI * 2);
-  ctx.ellipse(3.9, -103.2, 2.4, 1.5, 0, 0, Math.PI * 2);
+  ctx.moveTo(-7.2, eyeY + 0.2);
+  ctx.quadraticCurveTo(-4.2, eyeY - 2.1, -1.7, eyeY - 0.2);
+  ctx.quadraticCurveTo(-4.2, eyeY + 1.2, -7.2, eyeY + 0.4);
+  ctx.closePath();
+  ctx.moveTo(7.2, eyeY + 0.2);
+  ctx.quadraticCurveTo(4.2, eyeY - 2.1, 1.7, eyeY - 0.2);
+  ctx.quadraticCurveTo(4.2, eyeY + 1.2, 7.2, eyeY + 0.4);
+  ctx.closePath();
   ctx.fill();
 
   ctx.fillStyle = tone(JADE.eye);
   ctx.beginPath();
-  ctx.ellipse(-3.9, -103.2, 1.2, 1.2, 0, 0, Math.PI * 2);
-  ctx.ellipse(3.9, -103.2, 1.2, 1.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(-4.35, eyeY - 0.35, 1.05, 1.28, -0.16, 0, Math.PI * 2);
+  ctx.ellipse(4.35, eyeY - 0.35, 1.05, 1.28, 0.16, 0, Math.PI * 2);
   ctx.fill();
 
-  // Stern, cold expression.
-  ctx.strokeStyle = tone("#2f221a");
-  ctx.lineWidth = 1.45;
+  ctx.fillStyle = rgbaHex(tone("#e1fff3"), 0.42);
   ctx.beginPath();
-  ctx.moveTo(-8.2, -106.7);
-  ctx.lineTo(-1.6, -107.8);
-  ctx.moveTo(1.6, -107.8);
-  ctx.lineTo(8.2, -106.7);
+  ctx.ellipse(-4.7, eyeY - 0.8, 0.38, 0.52, 0, 0, Math.PI * 2);
+  ctx.ellipse(4.05, eyeY - 0.8, 0.38, 0.52, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sharper brows and focused gaze.
+  ctx.strokeStyle = tone("#2b1d16");
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-8.8, -106.9);
+  ctx.lineTo(-2.2, -109.1);
+  ctx.moveTo(2.2, -109.1);
+  ctx.lineTo(8.8, -106.9);
+  ctx.stroke();
+
+  ctx.strokeStyle = tone("#7b5b43");
+  ctx.lineWidth = 0.95;
+  ctx.beginPath();
+  ctx.moveTo(-7.1, -101.2);
+  ctx.quadraticCurveTo(-4.4, -100.3, -1.8, -101.2);
+  ctx.moveTo(1.8, -101.2);
+  ctx.quadraticCurveTo(4.4, -100.3, 7.1, -101.2);
   ctx.stroke();
 
   ctx.strokeStyle = tone("#5a4030");
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.1;
   ctx.beginPath();
-  ctx.moveTo(-2.8, -94.1);
-  ctx.lineTo(2.8, -94.3);
+  ctx.moveTo(-2.7, -94.5);
+  ctx.quadraticCurveTo(0, -93.6, 2.7, -94.5);
+  ctx.moveTo(-1.1, -93.8);
+  ctx.lineTo(1.1, -93.9);
   ctx.stroke();
 
   // Battle scar on cheek.
