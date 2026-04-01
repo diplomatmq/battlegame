@@ -633,6 +633,24 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.lineTo(26, -79);
   ctx.stroke();
 
+  const handLift = ultimateCast
+    ? -22 - ultimatePower * 36
+    : handCast
+      ? -8 - handPower * 16
+      : -4 + walkSwing * 0.25;
+  const handForward = ultimateCast
+    ? 8 + ultimatePower * 9
+    : handCast
+      ? 20 + handPower * 14
+      : 10;
+  const handX = -23 - handForward;
+  const handY = -53 + handLift;
+
+  const leftShoulderX = -19;
+  const leftShoulderY = -81;
+  const rightShoulderX = 19;
+  const rightShoulderY = -80.5;
+
   const staffMode: StaffRenderOptions["mode"] = ultimateCast ? "ultimate" : staffCast ? "critical" : "idle";
   const staffAngle = ultimateCast
     ? 0.25 + ultimatePower * 1.1
@@ -640,8 +658,45 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
       ? 0.2 + staffPower * 0.7
       : 0.1 - Math.sin(opts.walkPhase * 0.6) * 0.05;
 
+  const rightElbowX = 25.5
+    + Math.sin(opts.walkPhase * 0.92) * 1.8
+    + (staffCast ? 2.4 + staffPower * 2.6 : 0)
+    + (ultimateCast ? 2.8 + ultimatePower * 2.8 : 0);
+  const rightElbowY = -66 - staffPower * 3.5 - ultimatePower * 8.5;
+  const rightPalmX = 22 + Math.sin(staffAngle) * 6.2;
+  const rightPalmY = -72 + Math.cos(staffAngle) * 2.6 - ultimatePower * 1.2;
+
+  const leftElbowX = -27 - handForward * 0.24 - handPower * 4 - ultimatePower * 2.8;
+  const leftElbowY = -66 + handLift * 0.36;
+
+  // Rebuilt rigged arms: shoulder -> elbow -> palm with continuous joints.
+  ctx.strokeStyle = tone("#184132");
+  ctx.lineWidth = 9.2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(leftShoulderX, leftShoulderY);
+  ctx.quadraticCurveTo(leftElbowX, leftElbowY, handX, handY);
+  ctx.moveTo(rightShoulderX, rightShoulderY);
+  ctx.quadraticCurveTo(rightElbowX, rightElbowY, rightPalmX, rightPalmY);
+  ctx.stroke();
+
+  ctx.strokeStyle = rgbaHex(tone("#d7e2e9"), 0.2);
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.moveTo(leftShoulderX + 1.2, leftShoulderY + 0.8);
+  ctx.quadraticCurveTo(leftElbowX + 1.5, leftElbowY + 0.5, handX + 0.8, handY + 0.6);
+  ctx.moveTo(rightShoulderX + 0.8, rightShoulderY + 0.7);
+  ctx.quadraticCurveTo(rightElbowX + 0.7, rightElbowY + 0.5, rightPalmX + 0.5, rightPalmY + 0.6);
+  ctx.stroke();
+
+  ctx.fillStyle = tone("#6a737a");
+  ctx.beginPath();
+  ctx.ellipse(handX + 0.1, handY - 2.6, 4.7, 3.2, -0.18, 0, Math.PI * 2);
+  ctx.ellipse(rightPalmX - 0.2, rightPalmY - 2.5, 4.5, 3.1, 0.16, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.save();
-  ctx.translate(20, -75);
+  ctx.translate(rightPalmX - 0.9, rightPalmY - 2.2);
   ctx.rotate(staffAngle);
   ctx.fillStyle = tone("#153628");
   ctx.beginPath();
@@ -654,31 +709,20 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   drawBattleStaff(ctx, { mode: staffMode, power: staffPower + ultimatePower, auraPhase: opts.auraPhase, hitFlash: opts.hitFlash });
   ctx.restore();
 
-  const handLift = ultimateCast
-    ? -22 - ultimatePower * 36
-    : handCast
-      ? -8 - handPower * 16
-      : -4 + walkSwing * 0.25;
-  const handForward = ultimateCast
-    ? 8 + ultimatePower * 9
-    : handCast
-      ? 20 + handPower * 14
-      : 10;
-
-  ctx.fillStyle = tone("#184132");
-  ctx.beginPath();
-  ctx.moveTo(-14, -77);
-  ctx.quadraticCurveTo(-27, -65, -24 - handForward * 0.14, -52 + handLift * 0.2);
-  ctx.quadraticCurveTo(-21 - handForward * 0.2, -48 + handLift * 0.25, -15, -53);
-  ctx.quadraticCurveTo(-17, -63, -14, -76);
-  ctx.closePath();
-  ctx.fill();
-
-  const handX = -23 - handForward;
-  const handY = -53 + handLift;
   ctx.fillStyle = tone(JADE.skin);
   ctx.beginPath();
-  ctx.ellipse(handX, handY, 3.4, 4.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(rightPalmX, rightPalmY, 3.2, 3.8, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = rgbaHex(tone(JADE.cold), 0.34 + handPower * 0.2);
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.arc(handX - 0.4, handY + 0.2, 4.2, Math.PI * 0.12, Math.PI * 1.18);
+  ctx.stroke();
+
+  ctx.fillStyle = tone(JADE.skin);
+  ctx.beginPath();
+  ctx.ellipse(handX, handY, 3.55, 4.25, -0.08, 0, Math.PI * 2);
   ctx.fill();
 
   if (ultimateCast) {
@@ -801,20 +845,20 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.stroke();
 
   // Draw the sphere as a foreground left-palm socket effect so it never falls behind the body layers.
-  const handSpherePower = 0.42 + handPower * 0.66 + ultimatePower * 0.22;
-  drawHandMagicSpheres(ctx, handX, handY - 1.6, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
+  const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
+  drawHandMagicSpheres(ctx, handX, handY - 2.4, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
 
   if (handCast) {
-    const orb = ctx.createRadialGradient(handX, handY - 1.6, 0.8, handX, handY - 1.6, 16 + handPower * 13);
+    const orb = ctx.createRadialGradient(handX, handY - 2.4, 0.8, handX, handY - 2.4, 16 + handPower * 13);
     orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
     orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
     orb.addColorStop(1, rgbaHex(JADE.primary, 0));
     ctx.fillStyle = orb;
     ctx.beginPath();
-    ctx.arc(handX, handY - 1.6, 16 + handPower * 13, 0, Math.PI * 2);
+    ctx.arc(handX, handY - 2.4, 16 + handPower * 13, 0, Math.PI * 2);
     ctx.fill();
 
-    drawDiamondCrystal(ctx, handX, handY - 1.6, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
+    drawDiamondCrystal(ctx, handX, handY - 2.4, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
   }
 
   if (opts.stunned) {
@@ -1355,7 +1399,7 @@ export class JadeMageFighter extends Fighter {
         : 10;
 
     const localX = -23 - handForward;
-    const localY = -53 + handLift - 1.6;
+    const localY = -53 + handLift - 2.4;
     const dir = this.isFacingRight ? 1 : -1;
     return { x: this.x + dir * localX, y: this.y + localY };
   }
