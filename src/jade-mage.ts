@@ -844,7 +844,17 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.lineTo(4.6, -96.8);
   ctx.stroke();
 
-  // Draw the sphere as a foreground left-palm socket effect so it never falls behind the body layers.
+  if (opts.stunned) {
+    const frost = ctx.createRadialGradient(0, -86, 8, 0, -86, 50);
+    frost.addColorStop(0, rgbaHex(JADE.cold, 0.12));
+    frost.addColorStop(1, rgbaHex(JADE.cold, 0));
+    ctx.fillStyle = frost;
+    ctx.beginPath();
+    ctx.arc(0, -86, 50, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw sphere and all sphere effects on the top-most character layer.
   const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
   drawHandMagicSpheres(ctx, handX, handY - 2.4, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
 
@@ -859,16 +869,6 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
     ctx.fill();
 
     drawDiamondCrystal(ctx, handX, handY - 2.4, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
-  }
-
-  if (opts.stunned) {
-    const frost = ctx.createRadialGradient(0, -86, 8, 0, -86, 50);
-    frost.addColorStop(0, rgbaHex(JADE.cold, 0.12));
-    frost.addColorStop(1, rgbaHex(JADE.cold, 0));
-    ctx.fillStyle = frost;
-    ctx.beginPath();
-    ctx.arc(0, -86, 50, 0, Math.PI * 2);
-    ctx.fill();
   }
 }
 
