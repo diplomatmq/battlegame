@@ -1515,7 +1515,28 @@ export function drawJadeMagePreview(
     hitFlash: false,
     stunned: false,
     skyCalling: false,
+    renderSphere: false,
   });
+
+  // Preview top-layer sphere pass to keep the orb in front in all UI contexts.
+  const walkPhase = gameTick * 0.12;
+  const walkSwing = Math.sin(walkPhase) * 2.5;
+  const handLift = -4 + walkSwing * 0.25;
+  const handForward = 10;
+  const handX = -23 - handForward;
+  const handY = -53 + handLift - 2.4;
+  const handSpherePower = 0.5;
+
+  drawHandMagicSpheres(ctx, handX, handY, gameTick * 0.07 + walkPhase * 0.23, handSpherePower, false);
+  const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16);
+  orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+  orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+  orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+  ctx.fillStyle = orb;
+  ctx.beginPath();
+  ctx.arc(handX, handY, 16, 0, Math.PI * 2);
+  ctx.fill();
+  drawDiamondCrystal(ctx, handX, handY, 4, 6, 0.4, false);
 
   ctx.restore();
 }

@@ -299,7 +299,8 @@ function draw(): void {
   damageTexts.forEach(d => d.draw(ctx));
 
   // Global top-layer pass for Jade Mage sphere so it is never occluded by fighters/effects.
-  p1.drawGlobalOverlay(ctx, gameTime);
+  if (p1 instanceof JadeMageFighter) p1.drawGlobalOverlay(ctx, gameTime);
+  if (p2 instanceof JadeMageFighter) p2.drawGlobalOverlay(ctx, gameTime);
 
   ctx.restore();
 
