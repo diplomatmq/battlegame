@@ -333,6 +333,34 @@ function drawHandMagicSpheres(
   ctx.arc(handX, handY, coreRadius * 1.8, 0, Math.PI * 2);
   ctx.fill();
 
+  const ringSpin = auraPhase * 1.05;
+  const ringAlpha = 0.46 + strength * 0.22;
+  ctx.strokeStyle = rgbaHex(hitFlash ? "#ffffff" : JADE.cold, ringAlpha);
+  ctx.lineWidth = 1.1;
+  ctx.beginPath();
+  ctx.ellipse(handX, handY - 0.55, coreRadius * 2.5, coreRadius * 1.35, ringSpin, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = rgbaHex(hitFlash ? "#ffffff" : JADE.bright, ringAlpha * 0.84);
+  ctx.lineWidth = 0.95;
+  ctx.beginPath();
+  ctx.ellipse(handX, handY - 0.45, coreRadius * 3.1, coreRadius * 1.7, -ringSpin * 0.82 + 0.6, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = rgbaHex(JADE.primary, 0.35 + strength * 0.2);
+  ctx.lineWidth = 0.9;
+  for (let i = 0; i < 3; i++) {
+    const phase = auraPhase * 1.6 + i * 2.1;
+    const sx = handX + Math.cos(phase) * (coreRadius * 0.95);
+    const sy = handY - 0.3 + Math.sin(phase) * (coreRadius * 0.4);
+    const ex = handX + Math.cos(phase + 0.7) * (coreRadius * 2.4);
+    const ey = handY - 0.5 + Math.sin(phase + 0.9) * (coreRadius * 1.05);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.quadraticCurveTo(handX, handY - 1.2, ex, ey);
+    ctx.stroke();
+  }
+
   for (let i = 0; i < 3; i++) {
     const phase = auraPhase * 1.55 + i * ((Math.PI * 2) / 3);
     const ox = handX + Math.cos(phase) * orbitRadius;
@@ -653,23 +681,6 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.ellipse(handX, handY, 3.4, 4.1, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Restored signature hand spheres: always visible and bound to hand animation.
-  const handSpherePower = 0.42 + handPower * 0.66 + ultimatePower * 0.22;
-  drawHandMagicSpheres(ctx, handX, handY - 0.8, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
-
-  if (handCast) {
-    const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
-    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
-    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
-    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
-    ctx.fillStyle = orb;
-    ctx.beginPath();
-    ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
-    ctx.fill();
-
-    drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
-  }
-
   if (ultimateCast) {
     const callY = -158 - ultimatePower * 10;
     drawRuneCircle(ctx, 0, callY, 14 + ultimatePower * 8, opts.auraPhase * 1.1, 0.58 + ultimatePower * 0.25);
@@ -788,6 +799,23 @@ function drawBattleMageFigure(ctx: CanvasRenderingContext2D, opts: MageRenderOpt
   ctx.moveTo(6.5, -100.5);
   ctx.lineTo(4.6, -96.8);
   ctx.stroke();
+
+  // Draw the sphere as a foreground left-palm socket effect so it never falls behind the body layers.
+  const handSpherePower = 0.42 + handPower * 0.66 + ultimatePower * 0.22;
+  drawHandMagicSpheres(ctx, handX, handY - 1.6, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
+
+  if (handCast) {
+    const orb = ctx.createRadialGradient(handX, handY - 1.6, 0.8, handX, handY - 1.6, 16 + handPower * 13);
+    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(handX, handY - 1.6, 16 + handPower * 13, 0, Math.PI * 2);
+    ctx.fill();
+
+    drawDiamondCrystal(ctx, handX, handY - 1.6, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
+  }
 
   if (opts.stunned) {
     const frost = ctx.createRadialGradient(0, -86, 8, 0, -86, 50);
@@ -963,7 +991,7 @@ export class JadeMageFighter extends Fighter {
     }
 
     if (type === "normal") {
-      const hand = this.getHandOrigin();
+      const hand = this.getHandOrigin(true);
       const vel = this.velocityToOpponent(hand.x, hand.y, def.projectileSpeed);
       this.projectiles.push({
         x: hand.x,
@@ -1299,9 +1327,37 @@ export class JadeMageFighter extends Fighter {
     ctx.stroke();
   }
 
-  private getHandOrigin(): { x: number; y: number } {
+  private getCastProgress(type: AttackType): number {
+    if (!this.activeCast || this.activeCast.type !== type) return 0;
+    const total = this.attacks.getDefinition(type).castFrames;
+    return clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
+  }
+
+  private getHandOrigin(forceCastPose = false): { x: number; y: number } {
+    const skyCalling = this.skyBeam?.stage === "buildup";
+    const normalPower = forceCastPose ? 1 : this.getCastProgress("normal");
+    const ultimatePower = this.activeCast?.type === "ultimate"
+      ? this.getCastProgress("ultimate")
+      : skyCalling
+        ? 0.75
+        : 0;
+
+    const walkSwing = Math.sin(this.walkStep * 0.28) * 2.5;
+    const handLift = (this.activeCast?.type === "ultimate" || skyCalling)
+      ? -22 - ultimatePower * 36
+      : this.activeCast?.type === "normal"
+        ? -8 - normalPower * 16
+        : -4 + walkSwing * 0.25;
+    const handForward = (this.activeCast?.type === "ultimate" || skyCalling)
+      ? 8 + ultimatePower * 9
+      : this.activeCast?.type === "normal"
+        ? 20 + normalPower * 14
+        : 10;
+
+    const localX = -23 - handForward;
+    const localY = -53 + handLift - 1.6;
     const dir = this.isFacingRight ? 1 : -1;
-    return { x: this.x + dir * -34, y: this.y - 60 };
+    return { x: this.x + dir * localX, y: this.y + localY };
   }
 
   private getStaffTipOrigin(): { x: number; y: number } {
