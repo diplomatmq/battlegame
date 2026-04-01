@@ -1023,12 +1023,12 @@ export class JadeMageFighter extends Fighter {
     });
 
     ctx.restore();
-    this.drawForegroundHandSphere(ctx, gameTime, castType, castProgress, bob, bodyTilt);
+    this.drawForegroundHandSphere(ctx, walkPhase, castType, castProgress, bob, bodyTilt);
   }
 
   private drawForegroundHandSphere(
     ctx: CanvasRenderingContext2D,
-    gameTime: number,
+    walkPhase: number,
     castType: AttackType | null,
     castProgress: number,
     bob: number,
@@ -1043,7 +1043,6 @@ export class JadeMageFighter extends Fighter {
         : 0.75
       : 0;
 
-    const walkPhase = this.animation.state === "walk" ? gameTime * 0.32 : gameTime * 0.08;
     const walkSwing = Math.sin(walkPhase) * 2.5;
     const handLift = ultimateCast
       ? -22 - ultimatePower * 36
@@ -1056,31 +1055,32 @@ export class JadeMageFighter extends Fighter {
         ? 20 + handPower * 14
         : 10;
 
-    const localX = -23 - handForward;
-    const localY = -53 + handLift - 2.4;
-    const c = Math.cos(bodyTilt);
-    const s = Math.sin(bodyTilt);
-    const rotatedX = localX * c - localY * s;
-    const rotatedY = localX * s + localY * c;
-    const dir = this.isFacingRight ? 1 : -1;
-
-    const handX = this.x + rotatedX * dir;
-    const handY = this.y + rotatedY + bob;
+    const handX = -23 - handForward;
+    const handY = -53 + handLift - 2.4;
     const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
+
+    // Hard top-layer pass in the exact same local transform space as body draw.
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    if (!this.isFacingRight) ctx.scale(-1, 1);
+    ctx.translate(0, bob);
+    ctx.rotate(bodyTilt);
 
     drawHandMagicSpheres(ctx, handX, handY, this.auraPhase + walkPhase * 0.23, handSpherePower, this.animation.state === "hit");
 
-    if (!handCast) return;
+    if (handCast) {
+      const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
+      orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+      orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+      orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+      ctx.fillStyle = orb;
+      ctx.beginPath();
+      ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
+      ctx.fill();
+      drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, this.animation.state === "hit");
+    }
 
-    const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
-    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
-    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
-    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
-    ctx.fillStyle = orb;
-    ctx.beginPath();
-    ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
-    ctx.fill();
-    drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, this.animation.state === "hit");
+    ctx.restore();
   }
 
   private releaseAttack(type: AttackType): void {
