@@ -2,6 +2,7 @@
 
 import { CHAR_META, CharId, getCharId, setCharId, setCoins, syncProfileToServer } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
+import { drawJadeMagePreview } from "./jade-mage.js";
 
 const bgCanvas       = document.getElementById("bgCanvas")       as HTMLCanvasElement;
 const cardsContainer = document.getElementById("cardsContainer") as HTMLElement | null;
@@ -26,7 +27,11 @@ charIds.forEach(id => {
   {
     const pctx = cvs.getContext("2d")!;
     pctx.clearRect(0, 0, cvs.width, cvs.height);
-    drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 8, id, meta.color, 0, 0);
+    if (id === "mage") {
+      drawJadeMagePreview(pctx, cvs.width / 2, cvs.height - 8, 0, 0);
+    } else {
+      drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 8, id, meta.color, 0, 0);
+    }
   }
 
   // Name label (encode Cyrillic in meta.name via the unicode escapes already in player.ts)
