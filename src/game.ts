@@ -4,7 +4,7 @@ import { Fighter, state } from "./fighter.js";
 import { JadeMageFighter } from "./jade-mage.js";
 import { CryoKnightFighter } from "./cryo-knight-fighter.js";
 import { Particle, DamageText } from "./particles.js";
-import { CHAR_META, CharId, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
+import { CHAR_META, CharId, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon, syncProfileToServer } from "./player.js";
 // import socket from "./socket";
 // ...
 // socket.emit("play", profile);
@@ -33,6 +33,8 @@ const savedCharId = (getCharId() ?? "mage") as CharId;
 const savedNick   = getNick()   ?? "\u0417\u0410\u0429\u0418\u0422\u041d\u0418\u041a";
 const savedAvatar = getAvatar();
 const meta        = CHAR_META[savedCharId];
+
+void syncProfileToServer({ username: savedNick, charId: savedCharId });
 
 // --- Seeded RNG for synced auto-battler ---
 let currentSeed = Math.random() * 1000000;

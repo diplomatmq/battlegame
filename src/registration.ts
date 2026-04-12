@@ -2,7 +2,7 @@
 
 import {
   getNick, setNick, getAvatar, setAvatar, getCharId, setCharId,
-  isNickTaken, registerNick, getTelegramUser,
+  isNickTaken, registerNick, getTelegramUser, syncProfileToServer,
 } from "./player.js";
 
 // ── Redirect if already registered ─────────────────────────────────────────
@@ -21,6 +21,7 @@ if (getNick() && getCharId()) {
     // set nick + default character
     setNick(username);
     if (!getCharId()) setCharId("mage");
+    void syncProfileToServer({ username, charId: getCharId() });
 
     // try to get avatar from server endpoint and save
     if (tg.id) {
@@ -111,6 +112,7 @@ function proceed(): void {
   const nick = nickInput.value.trim();
   registerNick(nick);
   setNick(nick);
+  void syncProfileToServer({ username: nick, charId: getCharId() });
   if (tgUser?.id) localStorage.setItem("tgUserId", String(tgUser.id));
   if (flashEl) {
     flashEl.style.opacity = "1";

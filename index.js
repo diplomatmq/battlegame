@@ -157,18 +157,61 @@ app.post('/api/character', async (req, res) => {
       return res.status(404).json({ ok: false, error: 'User not found' });
     }
     const userId = userRes.rows[0].id;
-    
-    // Проверяем, есть ли уже персонаж
-    const checkRes = await pool.query('SELECT id FROM user_characters WHERE user_id = $1', [userId]);
-    if (checkRes.rowCount > 0) {
-      // Уже есть
-      return res.json({ ok: true, message: 'Character already selected' });
-    }
-    
-    await addUserCharacter(userId, character_id, faction || 'human');
-    res.json({ ok: true });
+
+    const sync = await ensureUserCharacterForUserId(userId, character_id, faction || 'human');
+    res.json({ ok: true, sync });
   } catch (e) {
     console.error('API /api/character error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Lightweight sync endpoint to restore DB records from WebApp local state.
+app.post('/api/sync-user', async (req, res) => {
+  const telegramId = req.body && req.body.telegram_id ? String(req.body.telegram_id) : null;
+  if (!telegramId) {
+    return res.status(400).json({ ok: false, error: 'telegram_id is required' });
+  }
+
+  const username = req.body && req.body.username
+    ? String(req.body.username)
+    : `player_${telegramId}`;
+  const characterId = req.body && req.body.character_id
+    ? String(req.body.character_id)
+    : null;
+  const faction = req.body && req.body.faction
+    ? String(req.body.faction)
+    : 'human';
+
+  try {
+    await registerPlayer(telegramId, username);
+
+    let sync = { created: false, updated: false };
+    if (characterId) {
+      const result = await ensureUserCharacterByTelegramId(telegramId, characterId, faction);
+      if (result) sync = result;
+    }
+
+    const profileRes = await pool.query(
+      `SELECT p.username, uc.character_id
+       FROM players p
+       LEFT JOIN user_characters uc ON uc.user_id = p.id
+       WHERE p.telegram_id = $1
+       ORDER BY uc.created_at DESC NULLS LAST
+       LIMIT 1`,
+      [telegramId]
+    );
+
+    const row = profileRes.rowCount > 0 ? profileRes.rows[0] : null;
+    res.json({
+      ok: true,
+      id: telegramId,
+      username: row && row.username ? row.username : username,
+      charId: row ? row.character_id ?? null : null,
+      sync,
+    });
+  } catch (e) {
+    console.error('API /api/sync-user error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -177,37 +220,60 @@ app.post('/api/character', async (req, res) => {
 app.get('/api/user/:id', async (req, res) => {
   const userId = req.params.id;
   try {
-    // Try to get chat (username/first_name)
-    const chat = await bot.getChat(userId);
+    const hintedUsername = req.query && req.query.username
+      ? String(req.query.username)
+      : null;
+    const hintedCharId = req.query && req.query.charId
+      ? String(req.query.charId)
+      : null;
 
-    // Try to retrieve profile photo (first available)
+    let username = hintedUsername;
     let avatar = null;
+
+    // Try to get chat/profile info from Telegram, but do not fail endpoint if unavailable.
     try {
-      const photos = await bot.getUserProfilePhotos(userId, { limit: 1 });
-      if (photos && photos.total_count > 0 && photos.photos && photos.photos[0] && photos.photos[0][0]) {
-        const fileId = photos.photos[0][0].file_id;
-        const file = await bot.getFile(fileId);
-        if (file && file.file_path) {
-          avatar = `https://api.telegram.org/file/bot${process.env.TELEGRAM_TOKEN}/${file.file_path}`;
+      const chat = await bot.getChat(userId);
+      if (!username && chat) {
+        username = chat.username || chat.first_name || null;
+      }
+
+      try {
+        const photos = await bot.getUserProfilePhotos(userId, { limit: 1 });
+        if (photos && photos.total_count > 0 && photos.photos && photos.photos[0] && photos.photos[0][0]) {
+          const fileId = photos.photos[0][0].file_id;
+          const file = await bot.getFile(fileId);
+          if (file && file.file_path) {
+            avatar = `https://api.telegram.org/file/bot${process.env.TELEGRAM_TOKEN}/${file.file_path}`;
+          }
         }
+      } catch (e) {
+        // ignore profile photo errors
       }
     } catch (e) {
-      // ignore profile photo errors
+      console.warn('Telegram getChat failed for user', userId, e.message);
+    }
+
+    // Always ensure player exists in DB, even if Telegram API is unavailable.
+    await registerPlayer(String(userId), username || `player_${userId}`);
+
+    // Optional char sync when frontend sends local selected char.
+    if (hintedCharId) {
+      await ensureUserCharacterByTelegramId(String(userId), hintedCharId, 'human');
     }
 
     // Checking if user has a character in our DB
     let charId = null;
     try {
       const charRes = await pool.query(
-        'SELECT character_id FROM user_characters uc JOIN players p ON p.id = uc.user_id WHERE p.telegram_id = $1 LIMIT 1',
+        'SELECT p.username, uc.character_id FROM players p LEFT JOIN user_characters uc ON p.id = uc.user_id WHERE p.telegram_id = $1 ORDER BY uc.created_at DESC NULLS LAST LIMIT 1',
         [String(userId)]
       );
       if (charRes.rowCount > 0) {
+        if (!username) username = charRes.rows[0].username || null;
         charId = charRes.rows[0].character_id;
       }
     } catch (e) { }
 
-    const username = (chat && (chat.username || chat.first_name)) || null;
     res.json({ ok: true, id: userId, username, avatar, charId });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -244,12 +310,59 @@ async function runMigrations() {
 async function registerPlayer(telegram_id, username) {
   try {
     const res = await pool.query(
-      'INSERT INTO players (telegram_id, username) VALUES ($1, $2) ON CONFLICT (telegram_id) DO NOTHING RETURNING id',
+      `INSERT INTO players (telegram_id, username)
+       VALUES ($1, $2)
+       ON CONFLICT (telegram_id)
+       DO UPDATE SET username = CASE
+         WHEN EXCLUDED.username IS NULL OR EXCLUDED.username = '' THEN players.username
+         ELSE EXCLUDED.username
+       END
+       RETURNING id`,
       [telegram_id, username]
     );
     return res.rows[0]?.id;
   } catch (e) {
     console.error('DB registerPlayer error:', e.message);
+    return null;
+  }
+}
+
+async function ensureUserCharacterForUserId(user_id, character_id, faction) {
+  try {
+    const existing = await pool.query(
+      'SELECT id, character_id FROM user_characters WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
+      [user_id]
+    );
+
+    if (existing.rowCount === 0) {
+      await addUserCharacter(user_id, character_id, faction);
+      return { created: true, updated: false };
+    }
+
+    const row = existing.rows[0];
+    if (row.character_id !== character_id) {
+      await pool.query(
+        'UPDATE user_characters SET character_id = $1, faction = $2 WHERE id = $3',
+        [character_id, faction, row.id]
+      );
+      return { created: false, updated: true };
+    }
+
+    return { created: false, updated: false };
+  } catch (e) {
+    console.error('DB ensureUserCharacterForUserId error:', e.message);
+    return { created: false, updated: false };
+  }
+}
+
+async function ensureUserCharacterByTelegramId(telegram_id, character_id, faction) {
+  try {
+    if (!character_id) return null;
+    const userRes = await pool.query('SELECT id FROM players WHERE telegram_id = $1 LIMIT 1', [telegram_id]);
+    if (userRes.rowCount === 0) return null;
+    return await ensureUserCharacterForUserId(userRes.rows[0].id, character_id, faction);
+  } catch (e) {
+    console.error('DB ensureUserCharacterByTelegramId error:', e.message);
     return null;
   }
 }

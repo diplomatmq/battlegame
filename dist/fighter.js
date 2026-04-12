@@ -24,14 +24,11 @@ export function drawCharacterPreview(ctx, cx, by, charType, color, bob = 0, gt =
     else if (charType === "goblin") {
         _drawGoblinPreview(ctx, color, gt, s);
     }
-    else if (charType === "mage" || charType === "killer") {
+    else if (charType === "mage") {
         _drawMagePreview(ctx, color, gt, s);
     }
-    else if (charType === "troll") {
-        _drawTrollPreview(ctx, color, s);
-    }
     else {
-        _drawKnightPreview(ctx, color, s);
+        _drawCryoKnightPreview(ctx, gt, s);
     }
     ctx.restore();
 }
@@ -597,7 +594,6 @@ export class Fighter {
         switch (this.charType) {
             // ─── KNIGHT: slow, tanky, charges when ready then stands firm
             case "knight":
-            case "iron_golem":
             case "cryo_knight":
                 if (this.fighterState === "idle" && this.stateTimer <= 0) {
                     if (this.attackCooldown <= 0) {
@@ -627,47 +623,6 @@ export class Fighter {
                         this.fighterState = "retreating";
                         this.targetX = this.startX + (Math.random() * 80 - 40);
                         this.stateTimer = 55; // stands ground longer before next charge
-                    }
-                }
-                break;
-            // ─── KILLER / shadow_killer: fast, dashes past opponent, hitand-run
-            case "killer":
-            case "shadow_killer":
-                if (this.fighterState === "idle" && this.stateTimer <= 0) {
-                    if (this.attackCooldown <= 0) {
-                        this.fighterState = "moving";
-                    }
-                    else {
-                        // Circle around opponent
-                        this._circleDir *= Math.random() < 0.1 ? -1 : 1;
-                        this.targetX = this.opponent.x + this._circleDir * (120 + Math.random() * 60);
-                        this.fighterState = "circling";
-                        this.stateTimer = 25;
-                    }
-                }
-                if (this.fighterState === "circling") {
-                    this.x += (this.targetX - this.x) * 0.18;
-                    if (this.stateTimer <= 0)
-                        this.fighterState = "idle";
-                }
-                if (this.fighterState === "moving") {
-                    this.targetX = this.isFacingRight ? this.opponent.x - 50 : this.opponent.x + 50;
-                    this.x += (this.targetX - this.x) * 0.22; // fast dash
-                    if (dist < 80) {
-                        this.performAttack();
-                        // Dash THROUGH/past the opponent after hitting
-                        this.targetX = this.isFacingRight
-                            ? this.opponent.x + 160
-                            : this.opponent.x - 160;
-                    }
-                }
-                if (this.fighterState === "attacking") {
-                    this.x += this.isFacingRight ? 18 : -18; // quick dash past
-                    if (this.stateTimer <= 0) {
-                        this.fighterState = "retreating";
-                        // Retreat to the *other* side so next strike comes from different angle
-                        this.targetX = this.x + (this.isFacingRight ? 100 : -100);
-                        this.stateTimer = 30;
                     }
                 }
                 break;
@@ -706,9 +661,8 @@ export class Fighter {
                     }
                 }
                 break;
-            // ─── MAGE / dark_mage: keeps distance, channels, then fires a burst
+            // ─── MAGE: keeps distance, channels, then fires a burst
             case "mage":
-            case "dark_mage":
                 if (this.fighterState === "idle" && this.stateTimer <= 0) {
                     if (dist < 180) {
                         // Too close — back away
@@ -862,7 +816,7 @@ export class Fighter {
                     }
                 }
                 break;
-            // ─── TROLL / orc / stone_giant: berserker — always rushing
+            // ─── Fallback: aggressive melee
             default:
                 if (this.fighterState === "idle" && this.stateTimer <= 0) {
                     if (this.attackCooldown <= 0) {
@@ -886,7 +840,7 @@ export class Fighter {
                     if (this.stateTimer <= 0) {
                         this.fighterState = "retreating";
                         this.targetX = this.startX;
-                        this.stateTimer = 28; // troll barely retreats
+                        this.stateTimer = 28;
                     }
                 }
                 break;
@@ -902,8 +856,7 @@ export class Fighter {
     performAttack() {
         this.fighterState = "attacking";
         this.stateTimer = 12;
-        const isMage = this.charType === "mage" || this.charType === "dark_mage";
-        const isKiller = this.charType === "killer" || this.charType === "shadow_killer";
+        const isMage = this.charType === "mage";
         const isScarletAssassin = this.charType === "scarlet_assassin";
         const isNecromancer = this.charType === "necromancer";
         const isBerserker = this.charType === "berserker";
@@ -925,8 +878,6 @@ export class Fighter {
             baseCd = 124;
         else if (isScarletAssassin)
             baseCd = assassinAttack === 0 ? 44 : assassinAttack === 1 ? 56 : 70;
-        else if (isKiller)
-            baseCd = 55;
         else if (isGoblin)
             baseCd = 50;
         else if (isBerserker)
@@ -980,10 +931,6 @@ export class Fighter {
                     baseMin = 60;
                     baseMax = 86;
                 }
-            }
-            else if (isKiller) {
-                baseMin = 45;
-                baseMax = 85;
             }
             else if (isBerserker) {
                 baseMin = 72;
@@ -1102,9 +1049,7 @@ export class Fighter {
         ctx.shadowBlur = flash ? 50 : (attacking ? 28 : casting ? 40 : 12);
         ctx.shadowColor = flash ? "#fff" : this.color;
         const legSwing = (moving || attacking) ? Math.sin(gameTime * 0.45) * 11 : 0;
-        const isMage = this.charType === "mage" || this.charType === "dark_mage";
-        const isTroll = this.charType === "troll" || this.charType === "orc_raider" || this.charType === "stone_giant";
-        const isKiller = this.charType === "killer" || this.charType === "shadow_killer";
+        const isMage = this.charType === "mage";
         const isScarletAssassin = this.charType === "scarlet_assassin";
         const isNecromancer = this.charType === "necromancer";
         const isBerserker = this.charType === "berserker";
@@ -1123,12 +1068,6 @@ export class Fighter {
         }
         else if (isGoblin) {
             this.drawGoblin(ctx, gameTime, flash, legSwing, attacking);
-        }
-        else if (isTroll) {
-            this.drawTroll(ctx, gameTime, flash, legSwing, attacking);
-        }
-        else if (isKiller) {
-            this.drawKnight(ctx, gameTime, flash, legSwing, attacking); // killer uses knight body
         }
         else {
             this.drawKnight(ctx, gameTime, flash, legSwing, attacking);

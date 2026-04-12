@@ -1,6 +1,6 @@
 // character.ts — entry point for character.html
 
-import { CHAR_META, CharId, getCharId, setCharId, setCoins } from "./player.js";
+import { CHAR_META, CharId, getCharId, setCharId, setCoins, syncProfileToServer } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
 
 const bgCanvas       = document.getElementById("bgCanvas")       as HTMLCanvasElement;
@@ -72,6 +72,7 @@ function selectChar(id: CharId): void {
 function confirmSelect(): void {
   if (!selectedId) return;
   setCharId(selectedId);
+  void syncProfileToServer({ charId: selectedId });
   setCoins(100); // starter coins
   if (flashEl) {
     flashEl.style.opacity = "1";
