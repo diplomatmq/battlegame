@@ -1,7 +1,12 @@
 // player.ts — shared data model and localStorage helpers
 
-export type WeaponType = "staff";
-export type CharId = "mage";
+export type WeaponType = "staff" | "daggers" | "scythe" | "axe" | "knife";
+export const CHAR_IDS = ["mage", "scarlet_assassin", "necromancer", "berserker", "goblin"] as const;
+export type CharId = typeof CHAR_IDS[number];
+
+export function isCharId(v: string): v is CharId {
+  return (CHAR_IDS as readonly string[]).includes(v);
+}
 
 export interface CharMeta {
   id: CharId;
@@ -21,6 +26,34 @@ export const CHAR_META: Record<CharId, CharMeta> = {
     desc: "\u041c\u0410\u0421\u0422\u0415\u0420 \u0418\u0417\u0423\u041c\u0420\u0423\u0414\u041d\u041e\u0419 \u042d\u041d\u0415\u0420\u0413\u0418\u0418",
     color: "#00e884", rgb: "0,232,132",
     weapon: "staff", isKnight: false, maxHp: 300,
+  },
+  scarlet_assassin: {
+    id: "scarlet_assassin",
+    name: "\u0410\u041b\u042b\u0419 \u0423\u0411\u0418\u0419\u0426\u0410",
+    desc: "\u0411\u0410\u0413\u0420\u042f\u041d\u042b\u0419 \u0422\u0410\u041d\u0426\u041e\u0420 \u0414\u0412\u0423\u0425 \u041a\u041b\u0418\u041d\u041a\u041e\u0412",
+    color: "#e0142f", rgb: "224,20,47",
+    weapon: "daggers", isKnight: false, maxHp: 260,
+  },
+  necromancer: {
+    id: "necromancer",
+    name: "\u041d\u0415\u041a\u0420\u041e\u041c\u0410\u041d\u0422",
+    desc: "\u0412\u041b\u0410\u0414\u042b\u041a\u0410 \u0414\u0423\u0428 \u0418 \u0422\u0415\u041c\u041d\u041e\u0419 \u041c\u0410\u0413\u0418\u0418",
+    color: "#7a4ab8", rgb: "122,74,184",
+    weapon: "scythe", isKnight: false, maxHp: 320,
+  },
+  berserker: {
+    id: "berserker",
+    name: "\u0411\u0415\u0420\u0421\u0415\u0420\u041a",
+    desc: "\u042f\u0420\u041e\u0421\u0422\u041d\u042b\u0419 \u0420\u0423\u0411\u0410\u041a\u0410 \u041f\u0415\u0420\u0415\u0414\u041d\u0415\u0419 \u041b\u0418\u041d\u0418\u0418",
+    color: "#c86a1d", rgb: "200,106,29",
+    weapon: "axe", isKnight: true, maxHp: 410,
+  },
+  goblin: {
+    id: "goblin",
+    name: "\u0413\u041e\u0411\u041b\u0418\u041d",
+    desc: "\u0425\u0418\u0422\u0420\u042b\u0419 \u0420\u0415\u0417\u0427\u0418\u041a \u0418\u0417 \u0427\u0410\u0429\u0418",
+    color: "#5fbf3a", rgb: "95,191,58",
+    weapon: "knife", isKnight: false, maxHp: 230,
   },
 };
 
@@ -115,10 +148,15 @@ export function getAvatar(): string | null { return localStorage.getItem("player
 export function setAvatar(v: string): void { localStorage.setItem("playerAvatar", v); }
 
 export function getCharId(): CharId | null {
-  localStorage.setItem("playerCharacter", "mage");
-  return "mage";
+  const raw = localStorage.getItem("playerCharacter");
+  if (!raw) return null;
+  return isCharId(raw) ? raw : null;
 }
-export function setCharId(_v: CharId | string): void { localStorage.setItem("playerCharacter", "mage"); }
+export function setCharId(v: CharId | string): void {
+  if (typeof v !== "string") return;
+  if (!isCharId(v)) return;
+  localStorage.setItem("playerCharacter", v);
+}
 
 export function getCoins(): number { return parseInt(localStorage.getItem("playerCoins") ?? "0", 10); }
 export function setCoins(v: number): void { localStorage.setItem("playerCoins", String(v)); }
@@ -156,6 +194,10 @@ export const ENEMY_ROSTER: EnemyDef[] = [
   { id: "shadow_killer",  name: "\u0423\u0411\u0418\u0419\u0426\u0410 \u0422\u0415\u041d\u0415\u0419",  charType: "killer", color: "#aa0066", maxHp:  700, atk: 6, def: 1, spd: 6 },
   { id: "stone_giant",    name: "\u041a\u0410\u041c\u0415\u041d\u041d\u042b\u0419 \u0413\u0418\u0413\u0410\u041d\u0422", charType: "troll", color: "#776655", maxHp: 1500, atk: 4, def: 5, spd: 1 },
   { id: "blood_knight",   name: "\u041a\u0420\u041e\u0412\u0410\u0412\u042b\u0419 \u0420\u042b\u0426\u0410\u0420\u042c", charType: "knight", color: "#cc0022", maxHp:  950, atk: 5, def: 4, spd: 2 },
+  { id: "scarlet_assassin", name: "\u0410\u041b\u042b\u0419 \u0423\u0411\u0418\u0419\u0426\u0410", charType: "scarlet_assassin", color: "#d6152e", maxHp: 820, atk: 6, def: 2, spd: 7 },
+  { id: "necromancer",      name: "\u041d\u0415\u041a\u0420\u041e\u041c\u0410\u041d\u0422",     charType: "necromancer",      color: "#7a4ab8", maxHp: 980, atk: 5, def: 3, spd: 3 },
+  { id: "berserker",        name: "\u0411\u0415\u0420\u0421\u0415\u0420\u041a",       charType: "berserker",        color: "#c86a1d", maxHp: 1250, atk: 7, def: 2, spd: 3 },
+  { id: "goblin",           name: "\u0413\u041e\u0411\u041b\u0418\u041d",         charType: "goblin",           color: "#5fbf3a", maxHp: 760, atk: 4, def: 1, spd: 7 },
 ];
 export function getRandomEnemy(): EnemyDef {
   return ENEMY_ROSTER[Math.floor(Math.random() * ENEMY_ROSTER.length)];

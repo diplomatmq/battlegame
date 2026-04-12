@@ -1,9 +1,9 @@
 // game.ts — entry point for game.html
 
 import { Fighter, state } from "./fighter.js";
-import { JadeMageFighter, enforceJadeMageSelection, applyJadeMageUi } from "./jade-mage.js";
+import { JadeMageFighter } from "./jade-mage.js";
 import { Particle, DamageText } from "./particles.js";
-import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
+import { CHAR_META, CharId, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
 // import socket from "./socket";
 // ...
 // socket.emit("play", profile);
@@ -28,8 +28,7 @@ const particles:   Particle[]   = [];
 const damageTexts: DamageText[] = [];
 
 // --- Player data ---
-enforceJadeMageSelection();
-const savedCharId = getCharId() ?? "mage";
+const savedCharId = (getCharId() ?? "mage") as CharId;
 const savedNick   = getNick()   ?? "\u0417\u0410\u0429\u0418\u0422\u041d\u0418\u041a";
 const savedAvatar = getAvatar();
 const meta        = CHAR_META[savedCharId];
@@ -53,7 +52,8 @@ const p1AvatarEl = document.getElementById("p1Avatar") as HTMLElement;
 const hp1Fill    = document.getElementById("hp-fill-1") as HTMLElement;
 
 p1NameEl.textContent          = savedNick;
-applyJadeMageUi(p1AvatarEl, hp1Fill);
+p1AvatarEl.style.borderColor = meta.color;
+hp1Fill.style.background = meta.color;
 
 if (savedAvatar) {
   p1AvatarEl.innerHTML = `<img src="${savedAvatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
@@ -73,7 +73,13 @@ if (hp2Fill)    hp2Fill.style.background       = enemy.color;
 if (p2AvatarEl) p2AvatarEl.textContent = enemy.name.substring(0, 2);
 
 // --- Fighters ---
-const p1 = new JadeMageFighter(200, 480, "hp-fill-1", true, particles, damageTexts);
+const p1: Fighter = savedCharId === "mage"
+  ? new JadeMageFighter(200, 480, "hp-fill-1", true, particles, damageTexts)
+  : new Fighter(200, 480, meta.color, "hp-fill-1", true, false, particles, damageTexts);
+
+if (savedCharId !== "mage") {
+  p1.charType = savedCharId;
+}
 
 // Apply player stats from equipment/level system
 const stats = getTotalStats();

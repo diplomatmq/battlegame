@@ -1,7 +1,7 @@
 // menu.ts — entry point for menu.html
 
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins, CharId } from "./player.js";
-import { drawJadeMagePreview, enforceJadeMageSelection } from "./jade-mage.js";
+import { drawCharacterPreview } from "./fighter.js";
 // import { Knight3D } from "./three-knight.js"; // Removed 3D
 
 // ── Navigation ──────────────────────────────────────────────────────────────
@@ -23,8 +23,7 @@ function goChallenges(): void { navigate("challenges.html"); }
 
 // ── Guard / Telegram auto-fill ─────────────────────────────────────────────────
 let nick: string | null = null;
-let charId: string | null = null;
-enforceJadeMageSelection();
+let charId: CharId | null = null;
 
 async function ensurePlayerFromTelegramIfMissing(): Promise<boolean> {
   nick = getNick();
@@ -113,8 +112,9 @@ async function initMenuUI() {
   const bgCanvas       = document.getElementById("bgCanvas")     as HTMLCanvasElement;
   const flashEl        = document.getElementById("flash")        as HTMLElement | null;
 
-  if (!charId) return;
-  const meta   = CHAR_META[charId as CharId];
+  const currentCharId = charId;
+  if (!currentCharId) return;
+  const meta   = CHAR_META[currentCharId];
   const avatar = getAvatar();
   const coins  = getCoins();
 
@@ -180,7 +180,7 @@ async function initMenuUI() {
     arCtx.scale(scale, scale);
     
     const bob = Math.sin(gameTime * 0.04) * 4;
-    drawJadeMagePreview(arCtx, 0, 0, bob, gameTime);
+    drawCharacterPreview(arCtx, 0, 0, currentCharId as CharId, meta.color, bob, gameTime);
     arCtx.restore();
 
     requestAnimationFrame(drawArena);
