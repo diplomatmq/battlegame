@@ -1,14 +1,13 @@
 // character.ts — entry point for character.html
-import { CHAR_META, setCharId, setCoins } from "./player.js";
-import { drawJadeMagePreview, enforceJadeMageSelection } from "./jade-mage.js";
+import { CHAR_META, getCharId, setCharId, setCoins } from "./player.js";
+import { drawCharacterPreview } from "./fighter.js";
 const bgCanvas = document.getElementById("bgCanvas");
 const cardsContainer = document.getElementById("cardsContainer");
 const btnConfirm = document.getElementById("btnConfirm");
 const flashEl = document.getElementById("flash");
 let selectedId = null;
-enforceJadeMageSelection();
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds = ["mage"];
+const charIds = ["cryo_knight", "mage", "scarlet_assassin", "necromancer", "berserker", "goblin"];
 charIds.forEach(id => {
     const meta = CHAR_META[id];
     const card = document.createElement("div");
@@ -21,7 +20,7 @@ charIds.forEach(id => {
     {
         const pctx = cvs.getContext("2d");
         pctx.clearRect(0, 0, cvs.width, cvs.height);
-        drawJadeMagePreview(pctx, cvs.width / 2, cvs.height - 10, 0, 0);
+        drawCharacterPreview(pctx, cvs.width / 2, cvs.height - 8, id, meta.color, 0, 0);
     }
     // Name label (encode Cyrillic in meta.name via the unicode escapes already in player.ts)
     const nameEl = document.createElement("div");
@@ -39,19 +38,23 @@ charIds.forEach(id => {
     card.addEventListener("click", () => selectChar(id));
     cardsContainer?.appendChild(card);
 });
-selectChar("mage");
+selectChar(getCharId() ?? "mage");
 function selectChar(id) {
     selectedId = id;
     charIds.forEach(cid => {
         const el = document.getElementById(`card-${cid}`);
-        if (el)
+        if (el) {
             el.classList.toggle("selected", cid === id);
+            el.classList.toggle("active", cid === id);
+        }
     });
     btnConfirm.disabled = false;
     const meta = CHAR_META[id];
     btnConfirm.style.borderColor = meta.color;
     btnConfirm.style.color = meta.color;
     btnConfirm.style.boxShadow = `0 0 16px ${meta.color}`;
+    document.body.style.setProperty("--char-color", meta.color);
+    document.body.style.setProperty("--char-rgb", meta.rgb);
 }
 function confirmSelect() {
     if (!selectedId)
