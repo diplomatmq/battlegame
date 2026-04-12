@@ -76,15 +76,27 @@ if (hp2Fill)    hp2Fill.style.background       = enemy.color;
 if (p2AvatarEl) p2AvatarEl.textContent = enemy.name.substring(0, 2);
 
 // --- Fighters ---
-const p1: Fighter = savedCharId === "mage"
-  ? new JadeMageFighter(200, 480, "hp-fill-1", true, particles, damageTexts)
-  : savedCharId === "cryo_knight"
-    ? new CryoKnightFighter(200, 480, "hp-fill-1", true, particles, damageTexts)
-  : new Fighter(200, 480, meta.color, "hp-fill-1", true, false, particles, damageTexts);
+function createFighterByCharType(
+  x: number,
+  y: number,
+  hpFillId: string,
+  isFacingRight: boolean,
+  charType: string,
+  color: string,
+): Fighter {
+  if (charType === "mage" || charType === "jade_mage") {
+    return new JadeMageFighter(x, y, hpFillId, isFacingRight, particles, damageTexts);
+  }
+  if (charType === "cryo_knight") {
+    return new CryoKnightFighter(x, y, hpFillId, isFacingRight, particles, damageTexts);
+  }
 
-if (savedCharId !== "mage" && savedCharId !== "cryo_knight") {
-  p1.charType = savedCharId;
+  const fighter = new Fighter(x, y, color, hpFillId, isFacingRight, false, particles, damageTexts);
+  fighter.charType = charType;
+  return fighter;
 }
+
+const p1: Fighter = createFighterByCharType(200, 480, "hp-fill-1", true, savedCharId, meta.color);
 
 // Apply player stats from equipment/level system
 const stats = getTotalStats();
@@ -94,8 +106,7 @@ p1.playerSpd = stats.spd;
 p1.equippedWeaponVisual = getEquippedWeaponVisual();
 
 // Base p2 init (will be overridden if online)
-const p2 = new Fighter(700, 480, enemy.color, "hp-fill-2", false, false, particles, damageTexts);
-p2.charType = enemy.charType;
+let p2: Fighter = createFighterByCharType(700, 480, "hp-fill-2", false, enemy.charType, enemy.color);
 p2.playerAtk = enemy.atk;
 p2.playerDef = enemy.def;
 p2.playerSpd = enemy.spd;
@@ -150,14 +161,6 @@ async function initTelegramUser() {
 }
 initTelegramUser();
 
-// (Offline) Enemy gets its own stats from the roster
-p2.playerAtk = enemy.atk;
-p2.playerDef = enemy.def;
-p2.playerSpd = enemy.spd;
-
-p1.setOpponent(p2);
-p2.setOpponent(p1);
-
 // Record fight started for challenges
 recordFightPlayed();
 
@@ -191,12 +194,20 @@ function startOnlineGame(opponentData: any, seed: number) {
   }
   if (hp2Fill) hp2Fill.style.background = oppColor;
 
-  p2.charType = oppCharType;
-  p2.color = oppColor;
+  p2 = createFighterByCharType(700, 480, "hp-fill-2", false, oppCharType, oppColor);
   p2.playerAtk = opponentData.atk || 1;
   p2.playerDef = opponentData.def || 1;
   p2.playerSpd = opponentData.spd || 1;
   p2.equippedWeaponVisual = opponentData.weaponVisual || null;
+  p1.setOpponent(p2);
+  p2.setOpponent(p1);
+
+  enemy = {
+    ...enemy,
+    name: opponentData.name || "ВРАГ",
+    charType: oppCharType,
+    color: oppColor,
+  };
 }
 
 function playOnline() {

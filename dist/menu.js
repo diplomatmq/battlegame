@@ -1,6 +1,7 @@
 // menu.ts — entry point for menu.html
 import { CHAR_META, getNick, getAvatar, getCharId, getCoins, syncProfileToServer } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
+import { drawJadeMagePreview } from "./jade-mage.js";
 // import { Knight3D } from "./three-knight.js"; // Removed 3D
 // ── Navigation ──────────────────────────────────────────────────────────────
 function navigate(url) {
@@ -175,7 +176,12 @@ async function initMenuUI() {
         arCtx.translate(w / 2, floorY - 10);
         arCtx.scale(scale, scale);
         const bob = Math.sin(gameTime * 0.04) * 4;
-        drawCharacterPreview(arCtx, 0, 0, currentCharId, meta.color, bob, gameTime);
+        if (currentCharId === "mage") {
+            drawJadeMagePreview(arCtx, 0, 0, bob, gameTime);
+        }
+        else {
+            drawCharacterPreview(arCtx, 0, 0, currentCharId, meta.color, bob, gameTime);
+        }
         arCtx.restore();
         requestAnimationFrame(drawArena);
     }
