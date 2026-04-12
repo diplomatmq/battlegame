@@ -1,9 +1,16 @@
 // player.ts — shared data model and localStorage helpers
-export const CHAR_IDS = ["mage", "scarlet_assassin", "necromancer", "berserker", "goblin"];
+export const CHAR_IDS = ["cryo_knight", "mage", "scarlet_assassin", "necromancer", "berserker", "goblin"];
 export function isCharId(v) {
     return CHAR_IDS.includes(v);
 }
 export const CHAR_META = {
+    cryo_knight: {
+        id: "cryo_knight",
+        name: "\u041a\u0420\u0418\u041e \u0420\u042b\u0426\u0410\u0420\u042c",
+        desc: "\u041b\u0415\u0414\u042f\u041d\u041e\u0419 \u0421\u0422\u0420\u0410\u0416 \u0414\u0420\u0415\u0412\u041d\u0418\u0425 \u0417\u0415\u041c\u0415\u041b\u042c",
+        color: "#4ac8e8", rgb: "74,200,232",
+        weapon: "sword", isKnight: true, maxHp: 380,
+    },
     mage: {
         id: "mage",
         name: "\u041d\u0415\u0424\u0420\u0418\u0422 \u041c\u0410\u0413",

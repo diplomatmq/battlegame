@@ -1,6 +1,7 @@
 // fighter.ts — Fighter class: AI, damage, pixel-art draw
 
 import { Particle, DamageText } from "./particles.js";
+import { drawCryoKnight } from "./cryo-knight-draw.js";
 
 // Shared mutable state — use an object so it acts as a reference
 export const state = { screenShake: 0 };
@@ -32,7 +33,9 @@ export function drawCharacterPreview(
   ctx.save();
   ctx.translate(cx, by + bob);
 
-  if (charType === "scarlet_assassin") {
+  if (charType === "cryo_knight") {
+    _drawCryoKnightPreview(ctx, gt, s);
+  } else if (charType === "scarlet_assassin") {
     _drawScarletAssassinPreview(ctx, color, gt, s);
   } else if (charType === "necromancer") {
     _drawNecromancerPreview(ctx, color, gt, s);
@@ -167,102 +170,301 @@ function _drawTrollPreview(ctx: CanvasRenderingContext2D, C: string, _s: number)
 }
 
 function _drawScarletAssassinPreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
-  const pulse = Math.sin(gt * 0.11) * 0.5 + 0.5;
-  ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.beginPath(); ctx.ellipse(0, 3, 24, 7, 0, 0, Math.PI * 2); ctx.fill();
+  const pulse = Math.sin(gt * 0.14) * 0.5 + 0.5;
+  const swirl = Math.sin(gt * 0.26) * 3.2;
 
-  ctx.fillStyle = "#2d040a"; ctx.fillRect(-11, -22, 8, 23); ctx.fillRect(3, -22, 8, 23);
-  ctx.fillStyle = C; ctx.fillRect(-13, -66, 26, 44);
-  ctx.fillStyle = "#7a0918"; ctx.fillRect(-16, -66, 6, 36); ctx.fillRect(10, -66, 6, 36);
-  ctx.fillStyle = "#4f0811"; ctx.fillRect(-8, -58, 16, 20);
+  ctx.fillStyle = "rgba(0,0,0,0.33)";
+  ctx.beginPath(); ctx.ellipse(0, 3, 25, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+  const aura = ctx.createRadialGradient(0, -64, 4, 0, -64, 44);
+  aura.addColorStop(0, `rgba(255,70,88,${0.2 + pulse * 0.18})`);
+  aura.addColorStop(1, "rgba(255,20,40,0)");
+  ctx.fillStyle = aura;
+  ctx.beginPath(); ctx.arc(0, -64, 44, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = "#23030a";
+  ctx.fillRect(-11, -22, 8, 22);
+  ctx.fillRect(3, -22, 8, 22);
+
+  ctx.fillStyle = "#460810";
+  ctx.beginPath();
+  ctx.moveTo(-13, -70);
+  ctx.quadraticCurveTo(-30 + swirl, -28, -16, 2);
+  ctx.lineTo(-8, -2);
+  ctx.quadraticCurveTo(-8, -34, -6, -66);
+  ctx.closePath();
+  ctx.fill();
+
+  const body = ctx.createLinearGradient(0, -72, 0, -20);
+  body.addColorStop(0, "#ff3648");
+  body.addColorStop(0.6, C);
+  body.addColorStop(1, "#6a0f1c");
+  ctx.fillStyle = body;
+  ctx.fillRect(-12, -66, 24, 44);
+
+  if (pulse > 0) {
+    ctx.fillStyle = "rgba(255,150,150,0.18)";
+    ctx.fillRect(-6, -64, 3, 34);
+    ctx.fillRect(3, -64, 3, 34);
+  }
 
   ctx.fillStyle = C;
   ctx.beginPath();
-  ctx.moveTo(-14, -84); ctx.lineTo(0, -100); ctx.lineTo(14, -84);
-  ctx.lineTo(10, -66); ctx.lineTo(-10, -66); ctx.closePath();
+  ctx.moveTo(-13, -86); ctx.lineTo(0, -103); ctx.lineTo(13, -86);
+  ctx.lineTo(9, -69); ctx.lineTo(-9, -69); ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = "#2a2a30"; ctx.fillRect(-9, -80, 18, 11);
-  ctx.fillStyle = `rgba(255,80,100,${0.72 + pulse * 0.28})`;
-  ctx.fillRect(-6, -76, 4, 3); ctx.fillRect(2, -76, 4, 3);
+  ctx.fillStyle = "#1e1f26";
+  ctx.fillRect(-8, -80, 16, 10);
+  ctx.fillStyle = `rgba(255,95,110,${0.72 + pulse * 0.28})`;
+  ctx.fillRect(-5, -77, 3, 3);
+  ctx.fillRect(2, -77, 3, 3);
 
-  ctx.fillStyle = C; ctx.fillRect(-22, -62, 8, 27); ctx.fillRect(14, -62, 8, 27);
-  ctx.fillStyle = "#7a471a"; ctx.fillRect(-24, -36, 4, 13); ctx.fillRect(20, -36, 4, 13);
-  ctx.fillStyle = "#d8d8e8";
-  ctx.beginPath(); ctx.moveTo(-22, -52); ctx.lineTo(-12, -64); ctx.lineTo(-10, -52); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(22, -52); ctx.lineTo(32, -64); ctx.lineTo(34, -52); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C;
+  ctx.fillRect(-22, -63, 8, 28);
+  ctx.fillRect(14, -63, 8, 28);
+
+  ctx.strokeStyle = `rgba(255,86,110,${0.34 + pulse * 0.3})`;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.arc(-14, -48, 11, Math.PI * 1.06, Math.PI * 1.86);
+  ctx.arc(14, -48, 11, Math.PI * 1.14, Math.PI * 1.94);
+  ctx.stroke();
+
+  ctx.fillStyle = "#6f4622";
+  ctx.fillRect(-24, -38, 4, 13);
+  ctx.fillRect(20, -38, 4, 13);
+  ctx.fillStyle = "#dce0ee";
+  ctx.beginPath(); ctx.moveTo(-22, -53); ctx.lineTo(-11, -66); ctx.lineTo(-9, -53); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(22, -53); ctx.lineTo(33, -66); ctx.lineTo(35, -53); ctx.closePath(); ctx.fill();
 }
 
 function _drawNecromancerPreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
-  const pulse = Math.sin(gt * 0.08) * 0.5 + 0.5;
+  const pulse = Math.sin(gt * 0.09) * 0.5 + 0.5;
+  const haze = ctx.createRadialGradient(0, -70, 2, 0, -70, 52);
+  haze.addColorStop(0, `rgba(168,120,255,${0.24 + pulse * 0.2})`);
+  haze.addColorStop(1, "rgba(95,55,170,0)");
+
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(0, 3, 26, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = haze;
+  ctx.beginPath(); ctx.arc(0, -70, 52, 0, Math.PI * 2); ctx.fill();
 
-  ctx.fillStyle = "#130919"; ctx.fillRect(-13, -22, 10, 22); ctx.fillRect(3, -22, 10, 22);
-  ctx.fillStyle = "#160a24"; ctx.fillRect(-20, -70, 12, 60);
-  ctx.fillStyle = C; ctx.fillRect(-14, -70, 28, 68);
-  ctx.fillStyle = "#2f1547"; ctx.fillRect(-14, -36, 28, 4); ctx.fillRect(-14, -68, 28, 4);
+  ctx.fillStyle = "#12081d";
+  ctx.fillRect(-12, -22, 9, 22);
+  ctx.fillRect(3, -22, 9, 22);
 
-  ctx.fillStyle = "#f1e9d2"; ctx.fillRect(-8, -88, 16, 18);
-  ctx.fillStyle = "#0f0f14"; ctx.fillRect(-5, -83, 3, 3); ctx.fillRect(2, -83, 3, 3);
+  ctx.fillStyle = "#12061b";
+  ctx.beginPath();
+  ctx.moveTo(-18, -72);
+  ctx.quadraticCurveTo(-34, -28, -18, 2);
+  ctx.lineTo(-8, -2);
+  ctx.quadraticCurveTo(-10, -38, -8, -70);
+  ctx.closePath();
+  ctx.fill();
+
+  const robe = ctx.createLinearGradient(0, -74, 0, 2);
+  robe.addColorStop(0, "#3c1f61");
+  robe.addColorStop(0.55, C);
+  robe.addColorStop(1, "#1a0c2e");
+  ctx.fillStyle = robe;
+  ctx.fillRect(-13, -70, 26, 70);
+
+  ctx.fillStyle = "#26123c";
+  ctx.fillRect(-13, -67, 26, 3);
+  ctx.fillRect(-13, -36, 26, 3);
+
   ctx.fillStyle = C;
   ctx.beginPath();
-  ctx.moveTo(-12, -98); ctx.lineTo(0, -112); ctx.lineTo(12, -98);
+  ctx.moveTo(-12, -98); ctx.lineTo(0, -114); ctx.lineTo(12, -98);
   ctx.lineTo(9, -88); ctx.lineTo(-9, -88); ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = C; ctx.fillRect(-24, -66, 9, 28);
-  ctx.fillStyle = "#6c4a28"; ctx.fillRect(-30, -108, 5, 72);
-  ctx.strokeStyle = "#bfa0ff"; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(-27.5, -112, 7 + pulse * 2, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#eee8d7";
+  ctx.fillRect(-8, -88, 16, 18);
+  ctx.fillStyle = "#1a1a24";
+  ctx.fillRect(-5, -84, 3, 3);
+  ctx.fillRect(2, -84, 3, 3);
+  ctx.fillStyle = "#d8d0c0";
+  ctx.fillRect(-1, -80, 2, 4);
 
-  ctx.fillStyle = C; ctx.fillRect(15, -62, 9, 24);
+  ctx.fillStyle = C;
+  ctx.fillRect(-24, -67, 9, 29);
+  ctx.fillStyle = "#6a4729";
+  ctx.fillRect(-30, -110, 5, 74);
+
+  ctx.strokeStyle = `rgba(186,154,255,${0.7 + pulse * 0.3})`;
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.arc(-27.5, -114, 7 + pulse * 2.3, 0, Math.PI * 2);
+  ctx.stroke();
+
+  for (let i = 0; i < 3; i++) {
+    const ph = gt * (0.08 + i * 0.02) + i * 1.7;
+    const ox = -2 + Math.cos(ph) * (11 + i * 4);
+    const oy = -88 + Math.sin(ph * 1.3) * (5 + i * 1.5);
+    const orb = ctx.createRadialGradient(ox, oy, 0.3, ox, oy, 3.5 + pulse * 1.5);
+    orb.addColorStop(0, "rgba(235,220,255,0.85)");
+    orb.addColorStop(1, "rgba(181,141,255,0)");
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(ox, oy, 3.5 + pulse * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = C;
+  ctx.fillRect(15, -62, 9, 24);
 }
 
 function _drawBerserkerPreview(ctx: CanvasRenderingContext2D, C: string, _s: number): void {
-  ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.beginPath(); ctx.ellipse(0, 3, 30, 9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,0.36)";
+  ctx.beginPath(); ctx.ellipse(0, 3, 31, 9, 0, 0, Math.PI * 2); ctx.fill();
 
-  ctx.fillStyle = "#4a220e"; ctx.fillRect(-14, -26, 12, 28); ctx.fillRect(2, -26, 12, 28);
-  ctx.fillStyle = "#42210f"; ctx.fillRect(-30, -34, 60, 14);
-  ctx.fillStyle = C; ctx.fillRect(-24, -82, 48, 52);
-  ctx.fillStyle = "#7b3d16"; ctx.fillRect(-10, -82, 20, 24);
-  ctx.fillStyle = "#f0c694"; ctx.fillRect(-14, -102, 28, 22);
+  const body = ctx.createLinearGradient(0, -86, 0, -28);
+  body.addColorStop(0, "#f18b2a");
+  body.addColorStop(0.55, C);
+  body.addColorStop(1, "#72350f");
+
+  ctx.fillStyle = "#4a220e";
+  ctx.fillRect(-14, -26, 12, 28);
+  ctx.fillRect(2, -26, 12, 28);
+
+  ctx.fillStyle = "#2d190f";
+  ctx.fillRect(-30, -35, 60, 15);
+  ctx.fillStyle = "#c29a5f";
+  ctx.fillRect(-28, -35, 8, 15);
+  ctx.fillRect(20, -35, 8, 15);
+
+  ctx.fillStyle = body;
+  ctx.fillRect(-24, -82, 48, 52);
+  ctx.fillStyle = "#7b3d16";
+  ctx.fillRect(-10, -82, 20, 24);
+  ctx.fillStyle = "rgba(255,208,120,0.2)";
+  ctx.fillRect(-7, -80, 3, 18);
+  ctx.fillRect(4, -80, 3, 18);
+
+  ctx.fillStyle = "#f0c694";
+  ctx.fillRect(-14, -102, 28, 22);
+  ctx.fillStyle = "#2e1a11";
+  ctx.fillRect(-8, -95, 3, 4);
+  ctx.fillRect(5, -95, 3, 4);
 
   ctx.fillStyle = "#7f3514";
   ctx.beginPath(); ctx.moveTo(-10, -104); ctx.lineTo(-20, -122); ctx.lineTo(-2, -104); ctx.closePath(); ctx.fill();
   ctx.beginPath(); ctx.moveTo(10, -104); ctx.lineTo(20, -122); ctx.lineTo(2, -104); ctx.closePath(); ctx.fill();
 
-  ctx.fillStyle = C; ctx.fillRect(-38, -80, 14, 44); ctx.fillRect(24, -80, 14, 44);
-  ctx.fillStyle = "#5c2e08"; ctx.fillRect(32, -108, 6, 84);
-  ctx.fillStyle = "#9a9aaa";
-  ctx.beginPath(); ctx.moveTo(35,-96); ctx.lineTo(64,-108); ctx.lineTo(68,-82); ctx.lineTo(35,-70); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#e2e2f2";
-  ctx.beginPath(); ctx.moveTo(62,-110); ctx.lineTo(74,-114); ctx.lineTo(74,-76); ctx.lineTo(62,-72); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C;
+  ctx.fillRect(-38, -80, 14, 44);
+  ctx.fillRect(24, -80, 14, 44);
+
+  ctx.fillStyle = "#5c2e08";
+  ctx.fillRect(32, -110, 6, 86);
+  ctx.fillStyle = "#9095a6";
+  ctx.beginPath(); ctx.moveTo(35,-98); ctx.lineTo(65,-110); ctx.lineTo(69,-83); ctx.lineTo(35,-70); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#e3e7f5";
+  ctx.beginPath(); ctx.moveTo(63,-112); ctx.lineTo(75,-116); ctx.lineTo(75,-76); ctx.lineTo(63,-72); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(255,160,80,0.35)";
+  ctx.fillRect(58, -105, 2, 28);
 }
 
 function _drawGoblinPreview(ctx: CanvasRenderingContext2D, C: string, gt: number, _s: number): void {
-  const pulse = Math.sin(gt * 0.15) * 0.5 + 0.5;
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
-  ctx.beginPath(); ctx.ellipse(0, 2, 20, 6, 0, 0, Math.PI * 2); ctx.fill();
+  const pulse = Math.sin(gt * 0.18) * 0.5 + 0.5;
+  const wobble = Math.sin(gt * 0.22) * 2.1;
 
-  ctx.fillStyle = "#204214"; ctx.fillRect(-11, -18, 8, 18); ctx.fillRect(3, -18, 8, 18);
-  ctx.fillStyle = "#4a2912"; ctx.fillRect(-12, -26, 24, 10);
-  ctx.fillStyle = C; ctx.fillRect(-14, -62, 28, 38);
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.beginPath(); ctx.ellipse(0, 2, 21, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = "#1f4214";
+  ctx.fillRect(-10, -18, 7, 18);
+  ctx.fillRect(3, -18, 7, 18);
+
+  const skin = ctx.createLinearGradient(0, -88, 0, -24);
+  skin.addColorStop(0, "#8ce158");
+  skin.addColorStop(0.65, C);
+  skin.addColorStop(1, "#2f661d");
+
+  ctx.fillStyle = "#4b2a12";
+  ctx.fillRect(-11, -29, 22, 11);
+  ctx.fillStyle = skin;
+  ctx.fillRect(-13, -64, 26, 40);
 
   ctx.fillStyle = C;
-  ctx.beginPath(); ctx.moveTo(-10, -84); ctx.lineTo(-20, -74); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(10, -84); ctx.lineTo(20, -74); ctx.lineTo(10, -70); ctx.closePath(); ctx.fill();
-  ctx.fillRect(-10, -86, 20, 20);
+  ctx.beginPath(); ctx.moveTo(-10, -86); ctx.lineTo(-22, -75 + wobble * 0.2); ctx.lineTo(-10, -70); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(10, -86); ctx.lineTo(22, -75 - wobble * 0.2); ctx.lineTo(10, -70); ctx.closePath(); ctx.fill();
+  ctx.fillRect(-10, -88, 20, 22);
 
-  ctx.fillStyle = "#ff3020";
-  ctx.fillRect(-6, -80, 4, 4); ctx.fillRect(2, -80, 4, 4);
-  ctx.fillStyle = "#0b1609"; ctx.fillRect(-4, -78, 2, 2); ctx.fillRect(4, -78, 2, 2);
+  ctx.fillStyle = `rgba(255,70,35,${0.75 + pulse * 0.25})`;
+  ctx.fillRect(-5, -82, 3, 3);
+  ctx.fillRect(2, -82, 3, 3);
+  ctx.fillStyle = "#111d0d";
+  ctx.fillRect(-3, -80, 2, 2);
+  ctx.fillRect(4, -80, 2, 2);
 
-  ctx.fillStyle = "#2f541f"; ctx.fillRect(-22, -60, 8, 24); ctx.fillRect(14, -60, 8, 24);
-  ctx.fillStyle = "#6f4622"; ctx.fillRect(22, -38, 4, 12);
-  ctx.fillStyle = `rgba(228,228,242,${0.7 + pulse * 0.3})`;
-  ctx.beginPath(); ctx.moveTo(24, -56); ctx.lineTo(34, -66); ctx.lineTo(36, -54); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#d7e9b8";
+  ctx.fillRect(-7, -73, 2, 6);
+  ctx.fillRect(5, -73, 2, 6);
+
+  ctx.fillStyle = "#2f541f";
+  ctx.fillRect(-20, -62, 8, 25);
+  ctx.fillRect(12, -62, 8, 25);
+
+  const vial = ctx.createRadialGradient(-20, -43, 1, -20, -43, 8);
+  vial.addColorStop(0, "rgba(200,255,130,0.88)");
+  vial.addColorStop(1, "rgba(120,220,80,0)");
+  ctx.fillStyle = vial;
+  ctx.beginPath(); ctx.arc(-20, -43, 8, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = "#6f4622";
+  ctx.fillRect(21, -38, 4, 12);
+  ctx.fillStyle = "#e4e4f2";
+  ctx.beginPath(); ctx.moveTo(23, -56); ctx.lineTo(34, -67); ctx.lineTo(36, -55); ctx.closePath(); ctx.fill();
+}
+
+function _drawCryoKnightPreview(ctx: CanvasRenderingContext2D, gt: number, _s: number): void {
+  const ambFrost: { a: number; d: number; off: number; op: number; sz: number }[] = [];
+  for (let i = 0; i < 12; i++) {
+    ambFrost.push({
+      a: gt * 0.025 + i * 0.52,
+      d: 5 + (i % 4) * 4,
+      off: 10 + Math.sin(gt * 0.05 + i) * 7,
+      op: 0.55 + Math.sin(gt * 0.03 + i * 0.7) * 0.14,
+      sz: 0.7 + (i % 3) * 0.35,
+    });
+  }
+
+  const cryoTrails = [{
+    x: 34,
+    y: -44 + Math.sin(gt * 0.12) * 2,
+    r: 6,
+    w: 1.7,
+    aa: Math.sin(gt * 0.08),
+    as: 0.72,
+    life: 0.8,
+    light: true,
+  }];
+
+  drawCryoKnight(
+    ctx,
+    0,
+    0,
+    0.95,
+    true,
+    "idle",
+    0,
+    -0.24 + Math.sin(gt * 0.05) * 0.05,
+    Math.sin(gt * 0.08) * 1.3,
+    0,
+    0,
+    0,
+    gt * 0.08,
+    0.9,
+    gt,
+    ambFrost,
+    cryoTrails,
+    [],
+    null,
+    null,
+  );
 }
 
 
@@ -331,6 +533,7 @@ export class Fighter {
       // ─── KNIGHT: slow, tanky, charges when ready then stands firm
       case "knight":
       case "iron_golem":
+      case "cryo_knight":
         if (this.fighterState === "idle" && this.stateTimer <= 0) {
           if (this.attackCooldown <= 0) {
             this.fighterState = "charging"; // special: slow charge
@@ -959,97 +1162,148 @@ export class Fighter {
   // ────────────────────────────────────────────────────────── SCARLET ASSASSIN
   private drawScarletAssassin(ctx: CanvasRenderingContext2D, gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
-    const pulse = Math.sin(gt * 0.22) * 0.5 + 0.5;
+    const pulse = Math.sin(gt * 0.24) * 0.5 + 0.5;
+    const scarfWave = Math.sin(gt * 0.36) * 4.8;
+    const dash = atk ? Math.sin(gt * 1.3) * 5.4 : 0;
 
-    ctx.fillStyle = flash ? "#fff" : "#2b0409";
-    ctx.fillRect(-11, -22, 8, 22 - leg * 0.4);
+    if (!flash) {
+      const aura = ctx.createRadialGradient(0, -60, 6, 0, -60, 36 + pulse * 10);
+      aura.addColorStop(0, `rgba(255,70,100,${0.2 + pulse * 0.16})`);
+      aura.addColorStop(1, "rgba(255,15,40,0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(0, -60, 36 + pulse * 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    ctx.globalAlpha = flash ? 1 : 0.82;
-    ctx.fillStyle = flash ? "#fff" : "#3f0208";
+    ctx.fillStyle = flash ? "#fff" : "#25040a";
+    ctx.fillRect(-11, -22, 8, 22 - leg * 0.45);
+
+    ctx.globalAlpha = flash ? 1 : 0.86;
+    ctx.fillStyle = flash ? "#fff" : "#4b0611";
     ctx.beginPath();
-    ctx.moveTo(-14, -72);
-    ctx.quadraticCurveTo(-34, -32, -18, 2);
+    ctx.moveTo(-14, -71);
+    ctx.quadraticCurveTo(-32 + scarfWave * 0.7, -30, -17, 1);
     ctx.lineTo(-8, -2);
-    ctx.quadraticCurveTo(-8, -34, -6, -68);
+    ctx.quadraticCurveTo(-8, -38, -6, -67);
     ctx.closePath();
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    this.fill(ctx, flash, C);
+    const torso = ctx.createLinearGradient(0, -70, 0, -20);
+    torso.addColorStop(0, flash ? "#fff" : "#ff3348");
+    torso.addColorStop(0.6, flash ? "#fff" : C);
+    torso.addColorStop(1, flash ? "#fff" : "#680f1c");
+    ctx.fillStyle = torso;
     ctx.fillRect(-12, -66, 24, 44);
+
     if (!flash) {
-      ctx.fillStyle = "#800d1b";
-      ctx.fillRect(-14, -66, 5, 34);
-      ctx.fillRect(9, -66, 5, 34);
-      ctx.fillStyle = "#3d070f";
+      ctx.fillStyle = "rgba(255,190,190,0.2)";
+      ctx.fillRect(-6, -63, 2, 31);
+      ctx.fillRect(4, -63, 2, 31);
+      ctx.fillStyle = "#3f0710";
       ctx.fillRect(-8, -54, 16, 18);
     }
 
-    ctx.fillStyle = flash ? "#fff" : "#2b0409";
-    ctx.fillRect(3, -22, 8, 22 + leg * 0.4);
+    ctx.fillStyle = flash ? "#fff" : "#25040a";
+    ctx.fillRect(3, -22, 8, 22 + leg * 0.45);
 
     this.fill(ctx, flash, C);
     ctx.beginPath();
-    ctx.moveTo(-13, -84);
-    ctx.lineTo(0, -102);
-    ctx.lineTo(13, -84);
+    ctx.moveTo(-13, -86);
+    ctx.lineTo(0, -103);
+    ctx.lineTo(13, -86);
     ctx.lineTo(9, -68);
     ctx.lineTo(-9, -68);
     ctx.closePath();
     ctx.fill();
 
     if (!flash) {
-      ctx.fillStyle = "#2a2a2f";
-      ctx.fillRect(-8, -79, 16, 10);
-      ctx.fillStyle = `rgba(255,70,90,${0.75 + pulse * 0.25})`;
-      ctx.fillRect(-5, -76, 3, 3);
-      ctx.fillRect(2, -76, 3, 3);
+      ctx.fillStyle = "#1f2028";
+      ctx.fillRect(-8, -80, 16, 10);
+      ctx.fillStyle = `rgba(255,85,105,${0.72 + pulse * 0.28})`;
+      ctx.fillRect(-5, -77, 3, 3);
+      ctx.fillRect(2, -77, 3, 3);
     }
 
     this.fill(ctx, flash, C);
     ctx.fillRect(-22, -64, 8, 29);
     ctx.fillRect(14, -64, 8, 29);
 
-    const slashRot = atk ? -Math.PI * 0.9 : -Math.PI * 0.25;
-    this.drawDagger(ctx, 22, -40, slashRot);
-    this.drawDagger(ctx, -22, -38, -slashRot * 0.82);
+    const slashRot = atk ? -Math.PI * 0.95 + Math.sin(gt * 1.1) * 0.12 : -Math.PI * 0.2;
+    this.drawDagger(ctx, 22 + dash * 0.14, -40, slashRot);
+    this.drawDagger(ctx, -22 - dash * 0.12, -38, -slashRot * 0.86);
+
+    if (atk && !flash) {
+      ctx.strokeStyle = `rgba(255,95,120,${0.35 + pulse * 0.3})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(22, -42, 17, -Math.PI * 0.95, -Math.PI * 0.35);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(-21, -40, 14, Math.PI * 1.25, Math.PI * 1.85);
+      ctx.stroke();
+    }
   }
 
   // ────────────────────────────────────────────────────────── NECROMANCER
   private drawNecromancer(ctx: CanvasRenderingContext2D, gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
-    const pulse = Math.sin(gt * 0.12) * 0.5 + 0.5;
+    const pulse = Math.sin(gt * 0.13) * 0.5 + 0.5;
+    const robeWave = Math.sin(gt * 0.16) * 3.2;
 
-    ctx.fillStyle = flash ? "#fff" : "#140a1f";
-    ctx.fillRect(-13, -22, 10, 22 - leg * 0.25);
-
-    ctx.fillStyle = flash ? "#fff" : "#0b0714";
-    ctx.beginPath();
-    ctx.moveTo(-18, -70);
-    ctx.quadraticCurveTo(-38, -30, -20, 2);
-    ctx.lineTo(-8, -2);
-    ctx.quadraticCurveTo(-10, -36, -8, -68);
-    ctx.closePath();
-    ctx.fill();
-
-    this.fill(ctx, flash, C);
-    ctx.fillRect(-13, -70, 26, 70);
     if (!flash) {
-      ctx.fillStyle = "#2f1547";
-      ctx.fillRect(-13, -68, 26, 4);
-      ctx.fillRect(-13, -36, 26, 4);
-      ctx.fillStyle = "#1a0d2c";
-      ctx.fillRect(-8, -60, 16, 26);
+      const aura = ctx.createRadialGradient(0, -72, 6, 0, -72, 52 + pulse * 10);
+      aura.addColorStop(0, `rgba(172,122,255,${0.2 + pulse * 0.16})`);
+      aura.addColorStop(1, "rgba(116,72,190,0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(0, -72, 52 + pulse * 10, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     ctx.fillStyle = flash ? "#fff" : "#140a1f";
-    ctx.fillRect(3, -22, 10, 22 + leg * 0.25);
+    ctx.fillRect(-12, -22, 9, 22 - leg * 0.25);
+
+    ctx.fillStyle = flash ? "#fff" : "#0b0714";
+    ctx.beginPath();
+    ctx.moveTo(-18, -71);
+    ctx.quadraticCurveTo(-37 + robeWave * 0.5, -30, -19, 2);
+    ctx.lineTo(-8, -2);
+    ctx.quadraticCurveTo(-10, -38, -8, -69);
+    ctx.closePath();
+    ctx.fill();
+
+    const robe = ctx.createLinearGradient(0, -74, 0, 2);
+    robe.addColorStop(0, flash ? "#fff" : "#3a1d62");
+    robe.addColorStop(0.55, flash ? "#fff" : C);
+    robe.addColorStop(1, flash ? "#fff" : "#1a0d30");
+    ctx.fillStyle = robe;
+    ctx.fillRect(-13, -70, 26, 70);
+
+    if (!flash) {
+      ctx.fillStyle = "#27113f";
+      ctx.fillRect(-13, -68, 26, 3);
+      ctx.fillRect(-13, -36, 26, 3);
+      ctx.strokeStyle = "rgba(182,154,255,0.4)";
+      ctx.lineWidth = 0.8;
+      for (let i = 0; i < 3; i++) {
+        const y = -58 + i * 10;
+        ctx.beginPath();
+        ctx.moveTo(-8, y);
+        ctx.quadraticCurveTo(0, y + 4, 8, y);
+        ctx.stroke();
+      }
+    }
+
+    ctx.fillStyle = flash ? "#fff" : "#140a1f";
+    ctx.fillRect(3, -22, 9, 22 + leg * 0.25);
 
     this.fill(ctx, flash, C);
     ctx.beginPath();
-    ctx.moveTo(-12, -98);
-    ctx.lineTo(0, -114);
-    ctx.lineTo(12, -98);
+    ctx.moveTo(-12, -99);
+    ctx.lineTo(0, -115);
+    ctx.lineTo(12, -99);
     ctx.lineTo(9, -88);
     ctx.lineTo(-9, -88);
     ctx.closePath();
@@ -1062,7 +1316,7 @@ export class Fighter {
       ctx.fillRect(-5, -84, 3, 3);
       ctx.fillRect(2, -84, 3, 3);
       ctx.fillStyle = "#d9cfb8";
-      ctx.fillRect(-1, -79, 2, 4);
+      ctx.fillRect(-1, -80, 2, 4);
     }
 
     this.fill(ctx, flash, C);
@@ -1074,34 +1328,83 @@ export class Fighter {
     if (!flash) {
       ctx.shadowBlur = 18 + pulse * 12;
       ctx.shadowColor = "#b58dff";
-      ctx.fillStyle = `rgba(181,141,255,${0.4 + pulse * 0.4})`;
+      ctx.fillStyle = `rgba(181,141,255,${0.42 + pulse * 0.35})`;
       ctx.beginPath();
-      ctx.arc(20, -52, 8 + pulse * 2, 0, Math.PI * 2);
+      ctx.arc(20, -52, 8 + pulse * 2.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
+
+      for (let i = 0; i < 3; i++) {
+        const phase = gt * (0.15 + i * 0.03) + i * 2.2;
+        const rx = 10 + i * 3;
+        const ry = 6 + i * 2;
+        ctx.strokeStyle = `rgba(206,182,255,${0.26 + pulse * 0.2})`;
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.ellipse(20, -52, rx, ry, phase, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    if (atk && !flash) {
+      ctx.strokeStyle = `rgba(202,170,255,${0.38 + pulse * 0.25})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(20, -52, 18 + pulse * 4, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 
   // ────────────────────────────────────────────────────────── BERSERKER
-  private drawBerserker(ctx: CanvasRenderingContext2D, _gt: number, flash: boolean, leg: number, atk: boolean): void {
+  private drawBerserker(ctx: CanvasRenderingContext2D, gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
+    const rage = this.hp < this.maxHp * 0.45 ? 1 : 0;
+    const ragePulse = Math.sin(gt * 0.25) * 0.5 + 0.5;
+
+    if (rage > 0 && !flash) {
+      const aura = ctx.createRadialGradient(0, -60, 8, 0, -60, 54 + ragePulse * 12);
+      aura.addColorStop(0, `rgba(255,145,62,${0.22 + ragePulse * 0.16})`);
+      aura.addColorStop(1, "rgba(255,75,22,0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(0, -60, 54 + ragePulse * 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.fillStyle = flash ? "#fff" : "#4a220e";
     ctx.fillRect(-14, -26, 12, 26 - leg * 0.3);
 
     if (!flash) {
-      ctx.fillStyle = "#402111";
+      ctx.fillStyle = "#311d12";
       ctx.fillRect(-30, -36, 60, 14);
+      ctx.fillStyle = "#be9558";
+      ctx.fillRect(-28, -36, 8, 14);
+      ctx.fillRect(20, -36, 8, 14);
     }
 
-    this.fill(ctx, flash, C);
+    const torso = ctx.createLinearGradient(0, -84, 0, -28);
+    torso.addColorStop(0, flash ? "#fff" : "#ea8a2a");
+    torso.addColorStop(0.55, flash ? "#fff" : C);
+    torso.addColorStop(1, flash ? "#fff" : "#703512");
+    ctx.fillStyle = torso;
     ctx.fillRect(-24, -82, 48, 52);
+
     if (!flash) {
       ctx.fillStyle = "#7b3d16";
       ctx.fillRect(-9, -82, 18, 24);
-      ctx.fillStyle = "rgba(0,0,0,0.18)";
-      ctx.fillRect(-12, -78, 8, 18);
-      ctx.fillRect(4, -78, 8, 18);
+      ctx.fillStyle = "rgba(255,208,130,0.2)";
+      ctx.fillRect(-7, -80, 3, 18);
+      ctx.fillRect(4, -80, 3, 18);
+      ctx.strokeStyle = "rgba(90,38,14,0.75)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-20, -52);
+      ctx.lineTo(-12, -44);
+      ctx.lineTo(-3, -53);
+      ctx.moveTo(4, -51);
+      ctx.lineTo(12, -45);
+      ctx.lineTo(18, -54);
+      ctx.stroke();
     }
 
     ctx.fillStyle = flash ? "#fff" : "#4a220e";
@@ -1125,13 +1428,26 @@ export class Fighter {
     this.fill(ctx, flash, C);
     ctx.fillRect(-38, -80, 14, 44);
     ctx.fillRect(24, -80, 14, 44);
-    this.drawAxe(ctx, atk);
+
+    this.drawWarAxe(ctx, atk, rage > 0 ? ragePulse : 0);
+
+    if (atk && !flash) {
+      ctx.strokeStyle = `rgba(255,165,70,${0.28 + ragePulse * 0.3})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(31, -61, 24, -Math.PI * 0.9, -Math.PI * 0.1);
+      ctx.stroke();
+    }
   }
 
   // ────────────────────────────────────────────────────────── GOBLIN
   private drawGoblin(ctx: CanvasRenderingContext2D, gt: number, flash: boolean, leg: number, atk: boolean): void {
     const C = this.color;
-    const pulse = Math.sin(gt * 0.25) * 0.5 + 0.5;
+    const pulse = Math.sin(gt * 0.27) * 0.5 + 0.5;
+    const jitter = Math.sin(gt * 0.55) * 1.4;
+
+    ctx.save();
+    ctx.translate(0, jitter * 0.22);
 
     ctx.fillStyle = flash ? "#fff" : "#204214";
     ctx.fillRect(-10, -18, 7, 18 - leg * 0.4);
@@ -1141,7 +1457,11 @@ export class Fighter {
       ctx.fillRect(-11, -28, 22, 10);
     }
 
-    this.fill(ctx, flash, C);
+    const skin = ctx.createLinearGradient(0, -90, 0, -22);
+    skin.addColorStop(0, flash ? "#fff" : "#8be055");
+    skin.addColorStop(0.65, flash ? "#fff" : C);
+    skin.addColorStop(1, flash ? "#fff" : "#2e651d");
+    ctx.fillStyle = skin;
     ctx.fillRect(-13, -64, 26, 40);
 
     ctx.fillStyle = flash ? "#fff" : "#204214";
@@ -1149,8 +1469,8 @@ export class Fighter {
 
     this.fill(ctx, flash, C);
     ctx.fillRect(-10, -88, 20, 22);
-    ctx.beginPath(); ctx.moveTo(-10, -84); ctx.lineTo(-21, -75); ctx.lineTo(-10, -71); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(10, -84); ctx.lineTo(21, -75); ctx.lineTo(10, -71); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, -84); ctx.lineTo(-22, -74 + jitter * 0.2); ctx.lineTo(-10, -71); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10, -84); ctx.lineTo(22, -74 - jitter * 0.2); ctx.lineTo(10, -71); ctx.closePath(); ctx.fill();
 
     if (!flash) {
       ctx.fillStyle = `rgba(255,60,30,${0.7 + pulse * 0.3})`;
@@ -1162,12 +1482,36 @@ export class Fighter {
       ctx.fillStyle = "#d7e6b0";
       ctx.fillRect(-8, -73, 3, 6);
       ctx.fillRect(5, -73, 3, 6);
+
+      ctx.fillStyle = "#13210f";
+      ctx.fillRect(-4, -74, 8, 2);
     }
 
     this.fill(ctx, flash, C);
     ctx.fillRect(-20, -62, 8, 25);
     ctx.fillRect(12, -62, 8, 25);
-    this.drawDagger(ctx, 20, -40, atk ? -Math.PI * 0.85 : -Math.PI * 0.22);
+
+    if (!flash) {
+      const vial = ctx.createRadialGradient(-20, -43, 1, -20, -43, 8 + pulse * 3);
+      vial.addColorStop(0, "rgba(210,255,140,0.92)");
+      vial.addColorStop(1, "rgba(110,220,70,0)");
+      ctx.fillStyle = vial;
+      ctx.beginPath();
+      ctx.arc(-20, -43, 8 + pulse * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    this.drawDagger(ctx, 20, -40, atk ? -Math.PI * 0.9 + Math.sin(gt * 1.3) * 0.1 : -Math.PI * 0.2);
+
+    if (atk && !flash) {
+      ctx.strokeStyle = `rgba(160,255,110,${0.35 + pulse * 0.25})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(20, -42, 13, -Math.PI * 0.95, -Math.PI * 0.2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   private drawDagger(ctx: CanvasRenderingContext2D, x: number, y: number, rot: number): void {
@@ -1176,7 +1520,11 @@ export class Fighter {
     ctx.rotate(rot);
     ctx.fillStyle = "#6f4622"; ctx.fillRect(-2, 6, 4, 12);
     ctx.fillStyle = "#cc9900"; ctx.fillRect(-5, 4, 10, 3);
-    ctx.fillStyle = "#daddea";
+    const blade = ctx.createLinearGradient(0, -16, 0, 5);
+    blade.addColorStop(0, "#eef1fb");
+    blade.addColorStop(0.55, "#ccd4ea");
+    blade.addColorStop(1, "#a9b2ca");
+    ctx.fillStyle = blade;
     ctx.beginPath();
     ctx.moveTo(-2, -16); ctx.lineTo(2, -16); ctx.lineTo(4, 4); ctx.lineTo(-4, 4);
     ctx.closePath(); ctx.fill();
@@ -1189,9 +1537,16 @@ export class Fighter {
     ctx.translate(-28, -62);
     ctx.rotate(atk ? -Math.PI * 0.44 : -Math.PI * 0.08);
 
-    ctx.fillStyle = "#5e4027"; ctx.fillRect(-2, -52, 4, 64);
+    const shaft = ctx.createLinearGradient(0, -52, 0, 12);
+    shaft.addColorStop(0, "#7a5634");
+    shaft.addColorStop(1, "#4a2f1c");
+    ctx.fillStyle = shaft; ctx.fillRect(-2, -52, 4, 64);
 
-    ctx.fillStyle = "#8f95a9";
+    const blade = ctx.createLinearGradient(4, -52, 38, -28);
+    blade.addColorStop(0, "#9ca4bb");
+    blade.addColorStop(0.6, "#dfe5f6");
+    blade.addColorStop(1, "#7a829a");
+    ctx.fillStyle = blade;
     ctx.beginPath();
     ctx.moveTo(1, -50);
     ctx.quadraticCurveTo(30, -60, 37, -38);
@@ -1205,6 +1560,48 @@ export class Fighter {
     ctx.moveTo(5, -41);
     ctx.quadraticCurveTo(20, -49, 31, -41);
     ctx.stroke();
+
+    ctx.fillStyle = `rgba(185,150,255,${0.16 + pulse * 0.16})`;
+    ctx.beginPath();
+    ctx.arc(1, -43, 4 + pulse * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private drawWarAxe(ctx: CanvasRenderingContext2D, atk: boolean, ragePulse: number): void {
+    ctx.save();
+    ctx.translate(30, -61);
+    ctx.rotate(atk ? -Math.PI * 0.72 : Math.PI * 0.06);
+
+    const shaft = ctx.createLinearGradient(0, -10, 0, 55);
+    shaft.addColorStop(0, "#7c4a20");
+    shaft.addColorStop(1, "#522a0e");
+    ctx.fillStyle = shaft;
+    ctx.fillRect(-3, -11, 7, 66);
+
+    const head = ctx.createLinearGradient(2, -36, 40, -10);
+    head.addColorStop(0, "#878da2");
+    head.addColorStop(0.55, "#cfd7ef");
+    head.addColorStop(1, "#6f7690");
+    ctx.fillStyle = head;
+    ctx.beginPath();
+    ctx.moveTo(4, -33); ctx.lineTo(32, -45); ctx.lineTo(37, -18); ctx.lineTo(4, -7);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#e8eefc";
+    ctx.beginPath();
+    ctx.moveTo(30, -47); ctx.lineTo(42, -50); ctx.lineTo(42, -12); ctx.lineTo(30, -10);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255,155,80,${0.2 + ragePulse * 0.35})`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(8, -30); ctx.lineTo(27, -23);
+    ctx.moveTo(10, -22); ctx.lineTo(26, -16);
+    ctx.stroke();
+
     ctx.restore();
   }
 

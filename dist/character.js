@@ -7,7 +7,7 @@ const btnConfirm = document.getElementById("btnConfirm");
 const flashEl = document.getElementById("flash");
 let selectedId = null;
 // ── Build character cards ─────────────────────────────────────────────────────
-const charIds = ["mage", "scarlet_assassin", "necromancer", "berserker", "goblin"];
+const charIds = ["cryo_knight", "mage", "scarlet_assassin", "necromancer", "berserker", "goblin"];
 charIds.forEach(id => {
     const meta = CHAR_META[id];
     const card = document.createElement("div");

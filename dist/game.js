@@ -1,6 +1,7 @@
 // game.ts — entry point for game.html
 import { Fighter, state } from "./fighter.js";
 import { JadeMageFighter } from "./jade-mage.js";
+import { CryoKnightFighter } from "./cryo-knight-fighter.js";
 import { CHAR_META, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon } from "./player.js";
 // import socket from "./socket";
 // ...
@@ -67,8 +68,10 @@ if (p2AvatarEl)
 // --- Fighters ---
 const p1 = savedCharId === "mage"
     ? new JadeMageFighter(200, 480, "hp-fill-1", true, particles, damageTexts)
-    : new Fighter(200, 480, meta.color, "hp-fill-1", true, false, particles, damageTexts);
-if (savedCharId !== "mage") {
+    : savedCharId === "cryo_knight"
+        ? new CryoKnightFighter(200, 480, "hp-fill-1", true, particles, damageTexts)
+        : new Fighter(200, 480, meta.color, "hp-fill-1", true, false, particles, damageTexts);
+if (savedCharId !== "mage" && savedCharId !== "cryo_knight") {
     p1.charType = savedCharId;
 }
 // Apply player stats from equipment/level system
