@@ -58,39 +58,100 @@ if (WEBHOOK_URL) {
 })();
 
 let waitingPlayer = null;
+const activeMatches = new Map(); // socketId -> { roomId, opponentId, role }
+
+function normalizeProfile(raw) {
+  const safe = raw || {};
+  return {
+    name: typeof safe.name === 'string' && safe.name.trim() ? safe.name.trim() : 'Игрок',
+    avatar: typeof safe.avatar === 'string' ? safe.avatar : null,
+    charType: typeof safe.charType === 'string' ? safe.charType : 'mage',
+    atk: Number.isFinite(safe.atk) ? safe.atk : 1,
+    def: Number.isFinite(safe.def) ? safe.def : 1,
+    spd: Number.isFinite(safe.spd) ? safe.spd : 1,
+    weaponVisual: typeof safe.weaponVisual === 'string' ? safe.weaponVisual : null,
+  };
+}
+
+function clearFromQueue(socketId) {
+  if (waitingPlayer && waitingPlayer.socket && waitingPlayer.socket.id === socketId) {
+    waitingPlayer = null;
+  }
+}
+
+function clearMatchBySocketId(socketId) {
+  const current = activeMatches.get(socketId);
+  if (!current) return null;
+  activeMatches.delete(socketId);
+  activeMatches.delete(current.opponentId);
+  return current;
+}
 
 io.on('connection', (socket) => {
-  let currentProfile = null;
-
   socket.on('play', (profile) => {
-    currentProfile = profile; // { name, avatar, charType, stats }
-    if (waitingPlayer && waitingPlayer.id !== socket.id) {
-      const oppSocket = waitingPlayer;
-      const seed = Math.floor(Math.random() * 1000000); // shared seed for match
-      
-      // Notify both players
-      io.to(oppSocket.id).emit('startGame', { 
-        opponent: socket.id, 
-        profile: currentProfile,
-        seed
-      });
-      socket.emit('startGame', { 
-        opponent: oppSocket.id, 
-        profile: oppSocket.profile,
-        seed
-      });
-      
+    const normalized = normalizeProfile(profile);
+
+    clearFromQueue(socket.id);
+    clearMatchBySocketId(socket.id);
+
+    if (waitingPlayer && waitingPlayer.socket.id !== socket.id) {
+      const host = waitingPlayer;
+      const guest = { socket, profile: normalized };
       waitingPlayer = null;
-    } else {
-      waitingPlayer = socket;
-      waitingPlayer.profile = profile;
-      socket.emit('waiting');
+
+      const roomId = `match_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const seed = Math.floor(Math.random() * 1000000);
+
+      host.socket.join(roomId);
+      guest.socket.join(roomId);
+
+      activeMatches.set(host.socket.id, { roomId, opponentId: guest.socket.id, role: 'host' });
+      activeMatches.set(guest.socket.id, { roomId, opponentId: host.socket.id, role: 'guest' });
+
+      host.socket.emit('startGame', {
+        roomId,
+        seed,
+        isHost: true,
+        profile: guest.profile,
+      });
+
+      guest.socket.emit('startGame', {
+        roomId,
+        seed,
+        isHost: false,
+        profile: host.profile,
+      });
+
+      return;
     }
+
+    waitingPlayer = { socket, profile: normalized, queuedAt: Date.now() };
+    socket.emit('waiting');
+  });
+
+  socket.on('cancel_search', () => {
+    clearFromQueue(socket.id);
+  });
+
+  // Host is authoritative and sends battle snapshots; server relays to guest.
+  socket.on('battle_state', (payload) => {
+    const match = activeMatches.get(socket.id);
+    if (!match || match.role !== 'host') return;
+    io.to(match.opponentId).emit('battle_state', payload);
+  });
+
+  socket.on('battle_over', (payload) => {
+    const match = activeMatches.get(socket.id);
+    if (!match) return;
+    io.to(match.opponentId).emit('battle_over', payload || {});
+    clearMatchBySocketId(socket.id);
   });
 
   socket.on('disconnect', () => {
-    if (waitingPlayer && waitingPlayer.id === socket.id) {
-      waitingPlayer = null;
+    clearFromQueue(socket.id);
+    const match = clearMatchBySocketId(socket.id);
+    if (match) {
+      io.to(match.opponentId).emit('opponent_left');
     }
   });
 });

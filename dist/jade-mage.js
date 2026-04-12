@@ -192,6 +192,79 @@ function drawRuneCircle(ctx, x, y, r, rotation, alpha) {
     }
     ctx.restore();
 }
+function drawHandMagicSpheres(ctx, handX, handY, auraPhase, power, hitFlash) {
+    const strength = clamp(power, 0, 1.2);
+    const coreRadius = lerp(3.4, 5.8, strength);
+    const glowRadius = lerp(12, 24, strength);
+    const orbitRadius = lerp(5.5, 9.5, strength);
+    const palmGlow = ctx.createRadialGradient(handX, handY, 0.6, handX, handY, glowRadius);
+    palmGlow.addColorStop(0, rgbaHex(hitFlash ? "#ffffff" : JADE.bright, 0.9));
+    palmGlow.addColorStop(0.48, rgbaHex(hitFlash ? "#ffffff" : JADE.primary, 0.5));
+    palmGlow.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = palmGlow;
+    ctx.beginPath();
+    ctx.arc(handX, handY, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+    const core = ctx.createRadialGradient(handX - 1.2, handY - 1.1, 0.4, handX, handY, coreRadius * 1.8);
+    core.addColorStop(0, "rgba(255,255,255,0.95)");
+    core.addColorStop(0.5, rgbaHex(hitFlash ? "#ffffff" : JADE.bright, 0.88));
+    core.addColorStop(1, rgbaHex(JADE.primary, 0.35));
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(handX, handY, coreRadius * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    const ringSpin = auraPhase * 1.05;
+    const ringAlpha = 0.46 + strength * 0.22;
+    ctx.strokeStyle = rgbaHex(hitFlash ? "#ffffff" : JADE.cold, ringAlpha);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.ellipse(handX, handY - 0.55, coreRadius * 2.5, coreRadius * 1.35, ringSpin, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = rgbaHex(hitFlash ? "#ffffff" : JADE.bright, ringAlpha * 0.84);
+    ctx.lineWidth = 0.95;
+    ctx.beginPath();
+    ctx.ellipse(handX, handY - 0.45, coreRadius * 3.1, coreRadius * 1.7, -ringSpin * 0.82 + 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = rgbaHex(JADE.primary, 0.35 + strength * 0.2);
+    ctx.lineWidth = 0.9;
+    for (let i = 0; i < 3; i++) {
+        const phase = auraPhase * 1.6 + i * 2.1;
+        const sx = handX + Math.cos(phase) * (coreRadius * 0.95);
+        const sy = handY - 0.3 + Math.sin(phase) * (coreRadius * 0.4);
+        const ex = handX + Math.cos(phase + 0.7) * (coreRadius * 2.4);
+        const ey = handY - 0.5 + Math.sin(phase + 0.9) * (coreRadius * 1.05);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo(handX, handY - 1.2, ex, ey);
+        ctx.stroke();
+    }
+    for (let i = 0; i < 3; i++) {
+        const phase = auraPhase * 1.55 + i * ((Math.PI * 2) / 3);
+        const ox = handX + Math.cos(phase) * orbitRadius;
+        const oy = handY - 1 + Math.sin(phase * 1.2) * (orbitRadius * 0.42);
+        const r = 1.6 + strength * 0.85 + Math.sin(auraPhase * 2.1 + i) * 0.2;
+        const orb = ctx.createRadialGradient(ox, oy, 0.2, ox, oy, r * 2.5);
+        orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+        orb.addColorStop(0.55, rgbaHex(JADE.bright, 0.82));
+        orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+        ctx.fillStyle = orb;
+        ctx.beginPath();
+        ctx.arc(ox, oy, r * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    for (let i = 0; i < 5; i++) {
+        const phase = auraPhase * 1.1 + i * 1.26;
+        const px = handX + Math.cos(phase) * (orbitRadius + 4 + (i % 2) * 1.5);
+        const py = handY + Math.sin(phase * 1.25) * (orbitRadius * 0.55 + i * 0.15) - 2;
+        const spark = ctx.createRadialGradient(px, py, 0.1, px, py, 1.9 + strength * 0.9);
+        spark.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+        spark.addColorStop(1, rgbaHex(JADE.bright, 0));
+        ctx.fillStyle = spark;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.9 + strength * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
 function drawBattleStaff(ctx, opts) {
     const modePower = opts.mode === "critical" ? opts.power : opts.mode === "ultimate" ? 0.8 + opts.power * 0.5 : 0.2;
     const shaftGrad = ctx.createLinearGradient(0, -110, 0, 8);
@@ -273,26 +346,28 @@ function drawBattleMageFigure(ctx, opts) {
     const ultimatePower = ultimateCast ? opts.castProgress : 0;
     const walkSwing = Math.sin(opts.walkPhase) * 2.5;
     const robeWave = Math.sin(opts.walkPhase * 1.2) * 3.8;
-    const auraRadius = 52 + handPower * 24 + staffPower * 18 + ultimatePower * 30;
-    const aura = ctx.createRadialGradient(0, -80, 8, 0, -80, auraRadius);
-    aura.addColorStop(0, rgbaHex(JADE.primary, 0.18 + handPower * 0.18 + ultimatePower * 0.1));
-    aura.addColorStop(0.58, rgbaHex(JADE.deep, 0.12 + staffPower * 0.15));
-    aura.addColorStop(1, rgbaHex(JADE.primary, 0));
-    ctx.fillStyle = aura;
-    ctx.beginPath();
-    ctx.arc(0, -80, auraRadius, 0, Math.PI * 2);
-    ctx.fill();
-    for (let i = 0; i < 5; i++) {
-        const phase = opts.auraPhase * (0.85 + i * 0.14) + i * 1.4;
-        const x = Math.cos(phase) * (17 + i * 3);
-        const y = -79 + Math.sin(phase * 1.3) * (8 + i * 1.4);
-        const orb = ctx.createRadialGradient(x, y, 0.1, x, y, 2.8 + handPower * 2 + staffPower * 1.5);
-        orb.addColorStop(0, rgbaHex(JADE.bright, 0.82));
-        orb.addColorStop(1, rgbaHex(JADE.bright, 0));
-        ctx.fillStyle = orb;
+    if (opts.renderAmbientAura !== false) {
+        const auraRadius = 52 + handPower * 24 + staffPower * 18 + ultimatePower * 30;
+        const aura = ctx.createRadialGradient(0, -80, 8, 0, -80, auraRadius);
+        aura.addColorStop(0, rgbaHex(JADE.primary, 0.18 + handPower * 0.18 + ultimatePower * 0.1));
+        aura.addColorStop(0.58, rgbaHex(JADE.deep, 0.12 + staffPower * 0.15));
+        aura.addColorStop(1, rgbaHex(JADE.primary, 0));
+        ctx.fillStyle = aura;
         ctx.beginPath();
-        ctx.arc(x, y, 2.8 + handPower * 2 + staffPower * 1.5, 0, Math.PI * 2);
+        ctx.arc(0, -80, auraRadius, 0, Math.PI * 2);
         ctx.fill();
+        for (let i = 0; i < 5; i++) {
+            const phase = opts.auraPhase * (0.85 + i * 0.14) + i * 1.4;
+            const x = Math.cos(phase) * (17 + i * 3);
+            const y = -79 + Math.sin(phase * 1.3) * (8 + i * 1.4);
+            const orb = ctx.createRadialGradient(x, y, 0.1, x, y, 2.8 + handPower * 2 + staffPower * 1.5);
+            orb.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+            orb.addColorStop(1, rgbaHex(JADE.bright, 0));
+            ctx.fillStyle = orb;
+            ctx.beginPath();
+            ctx.arc(x, y, 2.8 + handPower * 2 + staffPower * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
     const shadow = ctx.createRadialGradient(0, 4, 4, 0, 4, 32);
     shadow.addColorStop(0, "rgba(0,0,0,0.38)");
@@ -403,14 +478,62 @@ function drawBattleMageFigure(ctx, opts) {
     ctx.moveTo(16, -83);
     ctx.lineTo(26, -79);
     ctx.stroke();
+    const handLift = ultimateCast
+        ? -22 - ultimatePower * 36
+        : handCast
+            ? -8 - handPower * 16
+            : -4 + walkSwing * 0.25;
+    const handForward = ultimateCast
+        ? 8 + ultimatePower * 9
+        : handCast
+            ? 20 + handPower * 14
+            : 10;
+    const handX = -23 - handForward;
+    const handY = -53 + handLift;
+    const leftShoulderX = -19;
+    const leftShoulderY = -81;
+    const rightShoulderX = 19;
+    const rightShoulderY = -80.5;
     const staffMode = ultimateCast ? "ultimate" : staffCast ? "critical" : "idle";
     const staffAngle = ultimateCast
-        ? -0.25 - ultimatePower * 1.1
+        ? 0.25 + ultimatePower * 1.1
         : staffCast
-            ? -0.2 - staffPower * 0.7
-            : -0.1 + Math.sin(opts.walkPhase * 0.6) * 0.05;
+            ? 0.2 + staffPower * 0.7
+            : 0.1 - Math.sin(opts.walkPhase * 0.6) * 0.05;
+    const rightElbowX = 25.5
+        + Math.sin(opts.walkPhase * 0.92) * 1.8
+        + (staffCast ? 2.4 + staffPower * 2.6 : 0)
+        + (ultimateCast ? 2.8 + ultimatePower * 2.8 : 0);
+    const rightElbowY = -66 - staffPower * 3.5 - ultimatePower * 8.5;
+    const rightPalmX = 22 + Math.sin(staffAngle) * 6.2;
+    const rightPalmY = -72 + Math.cos(staffAngle) * 2.6 - ultimatePower * 1.2;
+    const leftElbowX = -27 - handForward * 0.24 - handPower * 4 - ultimatePower * 2.8;
+    const leftElbowY = -66 + handLift * 0.36;
+    // Rebuilt rigged arms: shoulder -> elbow -> palm with continuous joints.
+    ctx.strokeStyle = tone("#184132");
+    ctx.lineWidth = 9.2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(leftShoulderX, leftShoulderY);
+    ctx.quadraticCurveTo(leftElbowX, leftElbowY, handX, handY);
+    ctx.moveTo(rightShoulderX, rightShoulderY);
+    ctx.quadraticCurveTo(rightElbowX, rightElbowY, rightPalmX, rightPalmY);
+    ctx.stroke();
+    ctx.strokeStyle = rgbaHex(tone("#d7e2e9"), 0.2);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(leftShoulderX + 1.2, leftShoulderY + 0.8);
+    ctx.quadraticCurveTo(leftElbowX + 1.5, leftElbowY + 0.5, handX + 0.8, handY + 0.6);
+    ctx.moveTo(rightShoulderX + 0.8, rightShoulderY + 0.7);
+    ctx.quadraticCurveTo(rightElbowX + 0.7, rightElbowY + 0.5, rightPalmX + 0.5, rightPalmY + 0.6);
+    ctx.stroke();
+    ctx.fillStyle = tone("#6a737a");
+    ctx.beginPath();
+    ctx.ellipse(handX + 0.1, handY - 2.6, 4.7, 3.2, -0.18, 0, Math.PI * 2);
+    ctx.ellipse(rightPalmX - 0.2, rightPalmY - 2.5, 4.5, 3.1, 0.16, 0, Math.PI * 2);
+    ctx.fill();
     ctx.save();
-    ctx.translate(-20, -75);
+    ctx.translate(rightPalmX - 0.9, rightPalmY - 2.2);
     ctx.rotate(staffAngle);
     ctx.fillStyle = tone("#153628");
     ctx.beginPath();
@@ -422,41 +545,19 @@ function drawBattleMageFigure(ctx, opts) {
     ctx.fill();
     drawBattleStaff(ctx, { mode: staffMode, power: staffPower + ultimatePower, auraPhase: opts.auraPhase, hitFlash: opts.hitFlash });
     ctx.restore();
-    const handLift = ultimateCast
-        ? -22 - ultimatePower * 36
-        : handCast
-            ? -8 - handPower * 16
-            : -4 + walkSwing * 0.25;
-    const handForward = ultimateCast
-        ? 8 + ultimatePower * 9
-        : handCast
-            ? 20 + handPower * 14
-            : 10;
-    ctx.fillStyle = tone("#184132");
-    ctx.beginPath();
-    ctx.moveTo(14, -77);
-    ctx.quadraticCurveTo(27, -65, 24 + handForward * 0.14, -52 + handLift * 0.2);
-    ctx.quadraticCurveTo(21 + handForward * 0.2, -48 + handLift * 0.25, 15, -53);
-    ctx.quadraticCurveTo(17, -63, 14, -76);
-    ctx.closePath();
-    ctx.fill();
-    const handX = 23 + handForward;
-    const handY = -53 + handLift;
     ctx.fillStyle = tone(JADE.skin);
     ctx.beginPath();
-    ctx.ellipse(handX, handY, 3.4, 4.1, 0, 0, Math.PI * 2);
+    ctx.ellipse(rightPalmX, rightPalmY, 3.2, 3.8, 0.1, 0, Math.PI * 2);
     ctx.fill();
-    if (handCast) {
-        const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
-        orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
-        orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
-        orb.addColorStop(1, rgbaHex(JADE.primary, 0));
-        ctx.fillStyle = orb;
-        ctx.beginPath();
-        ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
-        ctx.fill();
-        drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
-    }
+    ctx.strokeStyle = rgbaHex(tone(JADE.cold), 0.34 + handPower * 0.2);
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.arc(handX - 0.4, handY + 0.2, 4.2, Math.PI * 0.12, Math.PI * 1.18);
+    ctx.stroke();
+    ctx.fillStyle = tone(JADE.skin);
+    ctx.beginPath();
+    ctx.ellipse(handX, handY, 3.55, 4.25, -0.08, 0, Math.PI * 2);
+    ctx.fill();
     if (ultimateCast) {
         const callY = -158 - ultimatePower * 10;
         drawRuneCircle(ctx, 0, callY, 14 + ultimatePower * 8, opts.auraPhase * 1.1, 0.58 + ultimatePower * 0.25);
@@ -465,7 +566,7 @@ function drawBattleMageFigure(ctx, opts) {
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(handX, handY);
-        ctx.quadraticCurveTo(handX + 8, -118, 0, callY);
+        ctx.quadraticCurveTo(handX - 8, -118, 0, callY);
         ctx.stroke();
     }
     ctx.fillStyle = tone("#070f0d");
@@ -479,38 +580,81 @@ function drawBattleMageFigure(ctx, opts) {
     ctx.fill();
     ctx.fillStyle = tone(JADE.skin);
     ctx.beginPath();
-    ctx.ellipse(0, -102, 11.4, 13.2, 0, 0, Math.PI * 2);
+    const faceGrad = ctx.createLinearGradient(0, -116, 0, -86);
+    faceGrad.addColorStop(0, tone("#dcc1a6"));
+    faceGrad.addColorStop(0.58, tone(JADE.skin));
+    faceGrad.addColorStop(1, tone("#b78f72"));
+    ctx.fillStyle = faceGrad;
+    ctx.ellipse(0, -102, 11.3, 13.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const cheekShade = ctx.createRadialGradient(-5.5, -99, 0.2, -5.5, -99, 4.4);
+    cheekShade.addColorStop(0, rgbaHex(tone("#a47d62"), 0.24));
+    cheekShade.addColorStop(1, rgbaHex(tone("#a47d62"), 0));
+    ctx.fillStyle = cheekShade;
+    ctx.beginPath();
+    ctx.arc(-5.5, -99, 4.4, 0, Math.PI * 2);
+    ctx.fill();
+    const cheekShadeR = ctx.createRadialGradient(5.5, -99, 0.2, 5.5, -99, 4.4);
+    cheekShadeR.addColorStop(0, rgbaHex(tone("#a47d62"), 0.24));
+    cheekShadeR.addColorStop(1, rgbaHex(tone("#a47d62"), 0));
+    ctx.fillStyle = cheekShadeR;
+    ctx.beginPath();
+    ctx.arc(5.5, -99, 4.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = tone("#8c6c51");
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.05;
     ctx.beginPath();
-    ctx.moveTo(0, -105);
-    ctx.quadraticCurveTo(1.3, -101, 0, -97);
+    ctx.moveTo(0, -105.2);
+    ctx.quadraticCurveTo(1.2, -101.4, -0.15, -98.1);
+    ctx.moveTo(-0.1, -98.3);
+    ctx.quadraticCurveTo(0.6, -97.5, 1.5, -98.1);
     ctx.stroke();
-    ctx.fillStyle = tone("#f5fbf8");
+    const eyeY = -103.2;
+    ctx.fillStyle = tone("#f1faf6");
     ctx.beginPath();
-    ctx.ellipse(-3.9, -103.2, 2.4, 1.5, 0, 0, Math.PI * 2);
-    ctx.ellipse(3.9, -103.2, 2.4, 1.5, 0, 0, Math.PI * 2);
+    ctx.moveTo(-7.2, eyeY + 0.2);
+    ctx.quadraticCurveTo(-4.2, eyeY - 2.1, -1.7, eyeY - 0.2);
+    ctx.quadraticCurveTo(-4.2, eyeY + 1.2, -7.2, eyeY + 0.4);
+    ctx.closePath();
+    ctx.moveTo(7.2, eyeY + 0.2);
+    ctx.quadraticCurveTo(4.2, eyeY - 2.1, 1.7, eyeY - 0.2);
+    ctx.quadraticCurveTo(4.2, eyeY + 1.2, 7.2, eyeY + 0.4);
+    ctx.closePath();
     ctx.fill();
     ctx.fillStyle = tone(JADE.eye);
     ctx.beginPath();
-    ctx.ellipse(-3.9, -103.2, 1.2, 1.2, 0, 0, Math.PI * 2);
-    ctx.ellipse(3.9, -103.2, 1.2, 1.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(-4.35, eyeY - 0.35, 1.05, 1.28, -0.16, 0, Math.PI * 2);
+    ctx.ellipse(4.35, eyeY - 0.35, 1.05, 1.28, 0.16, 0, Math.PI * 2);
     ctx.fill();
-    // Stern, cold expression.
-    ctx.strokeStyle = tone("#2f221a");
-    ctx.lineWidth = 1.45;
+    ctx.fillStyle = rgbaHex(tone("#e1fff3"), 0.42);
     ctx.beginPath();
-    ctx.moveTo(-8.2, -106.7);
-    ctx.lineTo(-1.6, -107.8);
-    ctx.moveTo(1.6, -107.8);
-    ctx.lineTo(8.2, -106.7);
+    ctx.ellipse(-4.7, eyeY - 0.8, 0.38, 0.52, 0, 0, Math.PI * 2);
+    ctx.ellipse(4.05, eyeY - 0.8, 0.38, 0.52, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Sharper brows and focused gaze.
+    ctx.strokeStyle = tone("#2b1d16");
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-8.8, -106.9);
+    ctx.lineTo(-2.2, -109.1);
+    ctx.moveTo(2.2, -109.1);
+    ctx.lineTo(8.8, -106.9);
+    ctx.stroke();
+    ctx.strokeStyle = tone("#7b5b43");
+    ctx.lineWidth = 0.95;
+    ctx.beginPath();
+    ctx.moveTo(-7.1, -101.2);
+    ctx.quadraticCurveTo(-4.4, -100.3, -1.8, -101.2);
+    ctx.moveTo(1.8, -101.2);
+    ctx.quadraticCurveTo(4.4, -100.3, 7.1, -101.2);
     ctx.stroke();
     ctx.strokeStyle = tone("#5a4030");
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.moveTo(-2.8, -94.1);
-    ctx.lineTo(2.8, -94.3);
+    ctx.moveTo(-2.7, -94.5);
+    ctx.quadraticCurveTo(0, -93.6, 2.7, -94.5);
+    ctx.moveTo(-1.1, -93.8);
+    ctx.lineTo(1.1, -93.9);
     ctx.stroke();
     // Battle scar on cheek.
     ctx.strokeStyle = tone("#7a3f3f");
@@ -526,6 +670,38 @@ function drawBattleMageFigure(ctx, opts) {
         ctx.fillStyle = frost;
         ctx.beginPath();
         ctx.arc(0, -86, 50, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    if (opts.renderSphere !== false) {
+        // Draw sphere and all sphere effects on the top-most character layer.
+        const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
+        drawHandMagicSpheres(ctx, handX, handY - 2.4, opts.auraPhase + opts.walkPhase * 0.23, handSpherePower, opts.hitFlash);
+        if (handCast) {
+            const orb = ctx.createRadialGradient(handX, handY - 2.4, 0.8, handX, handY - 2.4, 16 + handPower * 13);
+            orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+            orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+            orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+            ctx.fillStyle = orb;
+            ctx.beginPath();
+            ctx.arc(handX, handY - 2.4, 16 + handPower * 13, 0, Math.PI * 2);
+            ctx.fill();
+            drawDiamondCrystal(ctx, handX, handY - 2.4, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, opts.hitFlash);
+        }
+    }
+}
+function drawPreviewFrontAura(ctx, walkPhase, auraPhase) {
+    const ringR = 19 + Math.sin(auraPhase * 0.45) * 1.7;
+    drawRuneCircle(ctx, 0, -79, ringR, auraPhase * 0.16, 0.26);
+    for (let i = 0; i < 5; i++) {
+        const phase = auraPhase * (0.9 + i * 0.1) + i * 1.35;
+        const x = Math.cos(phase) * (16 + i * 2.2);
+        const y = -78 + Math.sin(phase * 1.25 + walkPhase * 0.2) * (6.5 + i * 1.2);
+        const g = ctx.createRadialGradient(x, y, 0.1, x, y, 2.6);
+        g.addColorStop(0, rgbaHex(JADE.bright, 0.82));
+        g.addColorStop(1, rgbaHex(JADE.primary, 0));
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.6, 0, Math.PI * 2);
         ctx.fill();
     }
 }
@@ -652,7 +828,75 @@ export class JadeMageFighter extends Fighter {
             hitFlash: this.animation.state === "hit",
             stunned: this.stunTimer > 0,
             skyCalling: this.skyBeam?.stage === "buildup",
+            renderSphere: false,
+            renderAmbientAura: false,
         });
+        ctx.restore();
+    }
+    drawGlobalOverlay(ctx, gameTime) {
+        const walkPhase = this.animation.state === "walk" ? gameTime * 0.32 : gameTime * 0.08;
+        const bob = Math.sin(gameTime * 0.12) * 1.9;
+        const bodyTilt = this.animation.state === "walk" ? Math.sin(gameTime * 0.16) * 0.05 : 0;
+        let castType = null;
+        let castProgress = 0;
+        if (this.activeCast) {
+            castType = this.activeCast.type;
+            const total = this.attacks.getDefinition(this.activeCast.type).castFrames;
+            castProgress = clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
+        }
+        // Front-layer rotating aura for Jade Mage in combat.
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        if (!this.isFacingRight)
+            ctx.scale(-1, 1);
+        ctx.translate(0, bob);
+        ctx.rotate(bodyTilt);
+        drawPreviewFrontAura(ctx, walkPhase, this.auraPhase);
+        ctx.restore();
+        this.drawForegroundHandSphere(ctx, walkPhase, castType, castProgress, bob, bodyTilt);
+    }
+    drawForegroundHandSphere(ctx, walkPhase, castType, castProgress, bob, bodyTilt) {
+        const handCast = castType === "normal";
+        const ultimateCast = castType === "ultimate" || this.skyBeam?.stage === "buildup";
+        const handPower = handCast ? castProgress : 0;
+        const ultimatePower = ultimateCast
+            ? castType === "ultimate"
+                ? castProgress
+                : 0.75
+            : 0;
+        const walkSwing = Math.sin(walkPhase) * 2.5;
+        const handLift = ultimateCast
+            ? -22 - ultimatePower * 36
+            : handCast
+                ? -8 - handPower * 16
+                : -4 + walkSwing * 0.25;
+        const handForward = ultimateCast
+            ? 8 + ultimatePower * 9
+            : handCast
+                ? 20 + handPower * 14
+                : 10;
+        const handX = -23 - handForward;
+        const handY = -53 + handLift - 2.4;
+        const handSpherePower = 0.5 + handPower * 0.68 + ultimatePower * 0.24;
+        // Hard top-layer pass in the exact same local transform space as body draw.
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        if (!this.isFacingRight)
+            ctx.scale(-1, 1);
+        ctx.translate(0, bob);
+        ctx.rotate(bodyTilt);
+        drawHandMagicSpheres(ctx, handX, handY, this.auraPhase + walkPhase * 0.23, handSpherePower, this.animation.state === "hit");
+        if (handCast) {
+            const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16 + handPower * 13);
+            orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+            orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+            orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+            ctx.fillStyle = orb;
+            ctx.beginPath();
+            ctx.arc(handX, handY, 16 + handPower * 13, 0, Math.PI * 2);
+            ctx.fill();
+            drawDiamondCrystal(ctx, handX, handY, 4 + handPower * 2, 6 + handPower * 3, 0.4 + handPower * 0.5, this.animation.state === "hit");
+        }
         ctx.restore();
     }
     releaseAttack(type) {
@@ -666,7 +910,7 @@ export class JadeMageFighter extends Fighter {
             return;
         }
         if (type === "normal") {
-            const hand = this.getHandOrigin();
+            const hand = this.getHandOrigin(true);
             const vel = this.velocityToOpponent(hand.x, hand.y, def.projectileSpeed);
             this.projectiles.push({
                 x: hand.x,
@@ -955,13 +1199,39 @@ export class JadeMageFighter extends Fighter {
         ctx.arc(beam.x, beam.groundY + 8, radius * 0.8, 0, Math.PI * 2);
         ctx.stroke();
     }
-    getHandOrigin() {
+    getCastProgress(type) {
+        if (!this.activeCast || this.activeCast.type !== type)
+            return 0;
+        const total = this.attacks.getDefinition(type).castFrames;
+        return clamp(1 - this.activeCast.framesLeft / Math.max(1, total), 0, 1);
+    }
+    getHandOrigin(forceCastPose = false) {
+        const skyCalling = this.skyBeam?.stage === "buildup";
+        const normalPower = forceCastPose ? 1 : this.getCastProgress("normal");
+        const ultimatePower = this.activeCast?.type === "ultimate"
+            ? this.getCastProgress("ultimate")
+            : skyCalling
+                ? 0.75
+                : 0;
+        const walkSwing = Math.sin(this.walkStep * 0.28) * 2.5;
+        const handLift = (this.activeCast?.type === "ultimate" || skyCalling)
+            ? -22 - ultimatePower * 36
+            : this.activeCast?.type === "normal"
+                ? -8 - normalPower * 16
+                : -4 + walkSwing * 0.25;
+        const handForward = (this.activeCast?.type === "ultimate" || skyCalling)
+            ? 8 + ultimatePower * 9
+            : this.activeCast?.type === "normal"
+                ? 20 + normalPower * 14
+                : 10;
+        const localX = -23 - handForward;
+        const localY = -53 + handLift - 2.4;
         const dir = this.isFacingRight ? 1 : -1;
-        return { x: this.x + dir * 34, y: this.y - 60 };
+        return { x: this.x + dir * localX, y: this.y + localY };
     }
     getStaffTipOrigin() {
         const dir = this.isFacingRight ? 1 : -1;
-        return { x: this.x + dir * -28, y: this.y - 160 };
+        return { x: this.x + dir * 28, y: this.y - 160 };
     }
     velocityToOpponent(fromX, fromY, speed) {
         const tx = this.opponent.x;
@@ -984,7 +1254,28 @@ export function drawJadeMagePreview(ctx, cx, by, bob = 0, gameTick = 0) {
         hitFlash: false,
         stunned: false,
         skyCalling: false,
+        renderSphere: false,
+        renderAmbientAura: false,
     });
+    // Preview top-layer sphere pass to keep the orb in front in all UI contexts.
+    const walkPhase = gameTick * 0.12;
+    drawPreviewFrontAura(ctx, walkPhase, gameTick * 0.07);
+    const walkSwing = Math.sin(walkPhase) * 2.5;
+    const handLift = -4 + walkSwing * 0.25;
+    const handForward = 10;
+    const handX = -23 - handForward;
+    const handY = -53 + handLift - 2.4;
+    const handSpherePower = 0.5;
+    drawHandMagicSpheres(ctx, handX, handY, gameTick * 0.07 + walkPhase * 0.23, handSpherePower, false);
+    const orb = ctx.createRadialGradient(handX, handY, 0.8, handX, handY, 16);
+    orb.addColorStop(0, rgbaHex("#ffffff", 0.92));
+    orb.addColorStop(0.42, rgbaHex(JADE.bright, 0.85));
+    orb.addColorStop(1, rgbaHex(JADE.primary, 0));
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(handX, handY, 16, 0, Math.PI * 2);
+    ctx.fill();
+    drawDiamondCrystal(ctx, handX, handY, 4, 6, 0.4, false);
     ctx.restore();
 }
 export function enforceJadeMageSelection() {

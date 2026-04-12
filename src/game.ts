@@ -5,25 +5,65 @@ import { JadeMageFighter } from "./jade-mage.js";
 import { CryoKnightFighter } from "./cryo-knight-fighter.js";
 import { Particle, DamageText } from "./particles.js";
 import { CHAR_META, CharId, getNick, getCharId, getAvatar, getTotalStats, getEquippedWeaponVisual, addXP, getRandomEnemy, recordFightPlayed, recordFightWon, syncProfileToServer } from "./player.js";
-// import socket from "./socket";
-// ...
-// socket.emit("play", profile);
-// ...
-/*
-socket.on("startGame", (data: { opponent: string; profile: any; seed: number }) => {
-  isOnline = true;
-  startOnlineGame(data.profile, data.seed);
-});
-
-socket.on("waiting", () => {
-  isWaiting = true;
-  if (p2NameEl) p2NameEl.textContent = "ОЖИДАНИЕ...";
-});
-*/
-// playOnline();
 
 const canvas = document.getElementById("gameCanvas") as HTMLCanvasElement;
 const ctx    = canvas.getContext("2d")!;
+
+const ARENA_WIDTH = 900;
+const ARENA_HEIGHT = 600;
+const ARENA_FLOOR_Y = 480;
+
+type MatchRole = "host" | "guest";
+type MatchOutcome = MatchRole | "draw";
+
+interface OnlineProfile {
+  name: string;
+  avatar: string | null;
+  charType: string;
+  atk: number;
+  def: number;
+  spd: number;
+  weaponVisual: string | null;
+}
+
+interface StartGamePayload {
+  roomId: string;
+  seed: number;
+  isHost: boolean;
+  profile: OnlineProfile;
+}
+
+interface SyncedFighterState {
+  x: number;
+  y: number;
+  hp: number;
+  fighterState: Fighter["fighterState"];
+  hitTimer: number;
+  charType: string;
+  color: string;
+}
+
+interface SyncedBattleState {
+  tick: number;
+  gameOver: boolean;
+  host: SyncedFighterState;
+  guest: SyncedFighterState;
+}
+
+interface SocketLike {
+  id?: string;
+  connected: boolean;
+  emit(event: string, payload?: unknown): void;
+  on(event: string, handler: (...args: unknown[]) => void): void;
+  disconnect(): void;
+}
+
+declare global {
+  interface Window {
+    Telegram?: any;
+    io?: (...args: unknown[]) => SocketLike;
+  }
+}
 
 const particles:   Particle[]   = [];
 const damageTexts: DamageText[] = [];
@@ -75,6 +115,11 @@ if (p2AvatarEl) p2AvatarEl.style.borderColor  = enemy.color;
 if (hp2Fill)    hp2Fill.style.background       = enemy.color;
 if (p2AvatarEl) p2AvatarEl.textContent = enemy.name.substring(0, 2);
 
+const battleStatusEl = document.getElementById("battleStatus") as HTMLElement | null;
+function setBattleStatus(text: string): void {
+  if (battleStatusEl) battleStatusEl.textContent = text;
+}
+
 // --- Fighters ---
 function createFighterByCharType(
   x: number,
@@ -115,22 +160,30 @@ p2.setOpponent(p1);
 
 // Responsive canvas: scale to wrapper size and devicePixelRatio
 const wrapper = document.getElementById('game-wrapper') as HTMLElement;
+let dpr = window.devicePixelRatio || 1;
+let arenaScale = 1;
+let arenaOffsetX = 0;
+let arenaOffsetY = 0;
+
 function resizeCanvas() {
   if (!wrapper) return;
   const rect = wrapper.getBoundingClientRect();
-  const DPR = window.devicePixelRatio || 1;
+  dpr = window.devicePixelRatio || 1;
   canvas.style.width = rect.width + 'px';
   canvas.style.height = rect.height + 'px';
-  canvas.width = Math.max(300, Math.floor(rect.width * DPR));
-  canvas.height = Math.max(200, Math.floor(rect.height * DPR));
-  // scale drawing to DPR so 1 unit == CSS pixel
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  canvas.width = Math.max(300, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(200, Math.floor(rect.height * dpr));
+
+  const cssW = canvas.width / dpr;
+  const cssH = canvas.height / dpr;
+  arenaScale = Math.min(cssW / ARENA_WIDTH, cssH / ARENA_HEIGHT);
+  arenaOffsetX = (cssW - ARENA_WIDTH * arenaScale) * 0.5;
+  arenaOffsetY = (cssH - ARENA_HEIGHT * arenaScale) * 0.5;
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 // If opened inside Telegram WebApp, try to use user's Telegram username + avatar
-declare global { interface Window { Telegram?: any } }
 async function initTelegramUser() {
   try {
     if (window.Telegram && window.Telegram.WebApp) {
@@ -170,12 +223,88 @@ let gameTime  = 0;
 // --- ONLINE GAME LOGIC ---
 let isOnline = false;
 let isWaiting = false;
-let hasStarted = true;
+let hasStarted = false;
+let localRole: MatchRole = "host";
+let activeRoomId: string | null = null;
+let pendingRemoteState: SyncedBattleState | null = null;
+let lastStateSentAt = 0;
+let outcomeHandled = false;
 
-function startOnlineGame(opponentData: any, seed: number) {
+const socket: SocketLike | null = typeof window.io === "function" ? window.io() : null;
+
+function syncHpBars(): void {
+  hp1Fill.style.width = `${(p1.hp / p1.maxHp) * 100}%`;
+  hp2Fill.style.width = `${(p2.hp / p2.maxHp) * 100}%`;
+}
+
+function serializeFighterState(f: Fighter): SyncedFighterState {
+  return {
+    x: f.x,
+    y: f.y,
+    hp: f.hp,
+    fighterState: f.fighterState,
+    hitTimer: f.hitTimer,
+    charType: f.charType,
+    color: f.color,
+  };
+}
+
+function applySyncedFighterState(target: Fighter, stateData: SyncedFighterState): void {
+  target.x = stateData.x;
+  target.y = stateData.y;
+  target.hp = stateData.hp;
+  target.fighterState = stateData.fighterState;
+  target.hitTimer = stateData.hitTimer;
+  target.charType = stateData.charType;
+  target.color = stateData.color;
+}
+
+function resolveHostOutcome(): MatchOutcome {
+  if (p1.hp > 0 && p2.hp <= 0) return "host";
+  if (p2.hp > 0 && p1.hp <= 0) return "guest";
+  return "draw";
+}
+
+function handleBattleOutcome(): void {
+  if (outcomeHandled) return;
+  outcomeHandled = true;
+
+  if (p1.hp > 0 && p2.hp <= 0) {
+    p1.fighterState = "victory";
+    p2.fighterState = "death";
+    addXP(50);
+    recordFightWon();
+  } else if (p2.hp > 0 && p1.hp <= 0) {
+    p1.fighterState = "death";
+    p2.fighterState = "victory";
+  } else {
+    p1.fighterState = "death";
+    p2.fighterState = "death";
+  }
+
+  setBattleStatus("МАТЧ ЗАВЕРШЕН");
+}
+
+function startOfflineBattle(): void {
+  isOnline = false;
+  isWaiting = false;
+  hasStarted = true;
+  localRole = "host";
+  activeRoomId = null;
+  pendingRemoteState = null;
+  setBattleStatus("АВТОМАТИЧЕСКИЙ БОЙ");
+}
+
+function startOnlineGame(opponentData: OnlineProfile, seed: number) {
   isWaiting = false;
   hasStarted = true;
   currentSeed = seed || 12345;
+  gameOver = false;
+  outcomeHandled = false;
+  lastStateSentAt = 0;
+  state.screenShake = 0;
+  particles.length = 0;
+  damageTexts.length = 0;
   
   if (p2NameEl) p2NameEl.textContent = opponentData.name || "ВРАГ";
   
@@ -208,11 +337,19 @@ function startOnlineGame(opponentData: any, seed: number) {
     charType: oppCharType,
     color: oppColor,
   };
+
+  syncHpBars();
 }
 
 function playOnline() {
+  if (!socket) {
+    startOfflineBattle();
+    return;
+  }
+
   if (isWaiting || hasStarted) return;
   isWaiting = true;
+  setBattleStatus("ПОИСК СОПЕРНИКА...");
   if (p2NameEl) p2NameEl.textContent = "ПОИСК ПРОТИВНИКА...";
   if (p2AvatarEl) {
     p2AvatarEl.innerHTML = "";
@@ -222,7 +359,7 @@ function playOnline() {
   }
 
   // Profile data to send to opponent
-  const profile = {
+  const profile: OnlineProfile = {
     name: p1NameEl.textContent,
     avatar: savedAvatar,
     charType: savedCharId,
@@ -231,28 +368,84 @@ function playOnline() {
     spd: p1.playerSpd,
     weaponVisual: p1.equippedWeaponVisual
   };
-  
-  // if (socket) socket.emit("play", profile);
+
+  socket.emit("play", profile);
 }
 
-/*
-if (socket) {
-  socket.on("startGame", (data: { opponent: string; profile: any; seed: number }) => {
-    isOnline = true;
-    startOnlineGame(data.profile, data.seed);
+function setupOnlineSocket(): void {
+  if (!socket) {
+    startOfflineBattle();
+    return;
+  }
+
+  socket.on("connect", () => {
+    if (!hasStarted && !isWaiting) {
+      playOnline();
+    }
   });
+
+  socket.on("waiting", () => {
+    isWaiting = true;
+    hasStarted = false;
+    setBattleStatus("ПОИСК СОПЕРНИКА...");
+    if (p2NameEl) p2NameEl.textContent = "ОЖИДАНИЕ...";
+  });
+
+  socket.on("startGame", (payloadRaw: unknown) => {
+    const payload = (payloadRaw || {}) as StartGamePayload;
+    isOnline = true;
+    localRole = payload.isHost ? "host" : "guest";
+    activeRoomId = payload.roomId || null;
+    pendingRemoteState = null;
+    startOnlineGame(payload.profile || ({} as OnlineProfile), payload.seed || 12345);
+    setBattleStatus("ОНЛАЙН БОЙ");
+  });
+
+  socket.on("battle_state", (payloadRaw: unknown) => {
+    if (localRole === "host") return;
+
+    const payload = payloadRaw as { state?: SyncedBattleState } | SyncedBattleState;
+    const synced = (payload as { state?: SyncedBattleState }).state || (payload as SyncedBattleState);
+    if (!synced) return;
+    pendingRemoteState = synced;
+  });
+
+  socket.on("battle_over", () => {
+    if (localRole === "host") return;
+    if (gameOver) return;
+    gameOver = true;
+    handleBattleOutcome();
+  });
+
+  socket.on("opponent_left", () => {
+    isWaiting = false;
+    hasStarted = false;
+    gameOver = true;
+    setBattleStatus("СОПЕРНИК ВЫШЕЛ");
+    if (p2NameEl) p2NameEl.textContent = "СОПЕРНИК ВЫШЕЛ";
+    const btn = document.getElementById("backBtn") as HTMLElement | null;
+    if (btn) btn.style.display = "block";
+  });
+
+  socket.on("disconnect", () => {
+    if (!gameOver) {
+      hasStarted = false;
+      isWaiting = false;
+      setBattleStatus("СОЕДИНЕНИЕ ПОТЕРЯНО");
+    }
+  });
+
+  if (socket.connected) playOnline();
+  else setBattleStatus("ПОДКЛЮЧЕНИЕ...");
 }
-*/
 
-/*
-socket.on("waiting", () => {
-  isWaiting = true;
-  if (p2NameEl) p2NameEl.textContent = "ОЖИДАНИЕ...";
+setupOnlineSocket();
+
+window.addEventListener("beforeunload", () => {
+  if (!socket) return;
+  if (isWaiting) socket.emit("cancel_search");
+  socket.disconnect();
 });
-
-// Auto-start online search on load
-playOnline();
-*/
 
 function update(): void {
   if (isWaiting || !hasStarted) return; // wait for match to start
@@ -261,26 +454,51 @@ function update(): void {
   Math.random = pseudoRandom; // sync rng
   
   if (!gameOver) {
-    p1.updateAI(gameOver);
-    p2.updateAI(gameOver);
-    if (p1.hp <= 0 || p2.hp <= 0) {
-      gameOver = true;
-      if (p1.hp > 0 && p2.hp <= 0) {
-        p1.fighterState = "victory";
-        p2.fighterState = "death";
-        addXP(50);
-        recordFightWon();
-      } else {
-        if (p2.hp > 0 && p1.hp <= 0) {
-          p1.fighterState = "death";
-          p2.fighterState = "victory";
-        } else {
-          p1.fighterState = "death";
-          p2.fighterState = "death";
+    if (isOnline && localRole === "guest") {
+      if (pendingRemoteState) {
+        // Host sends host/guest slots; map them into the local view where p1 is always "you".
+        applySyncedFighterState(p2, pendingRemoteState.host);
+        applySyncedFighterState(p1, pendingRemoteState.guest);
+        syncHpBars();
+        if (pendingRemoteState.gameOver) {
+          gameOver = true;
+          handleBattleOutcome();
+        }
+      }
+    } else {
+      p1.updateAI(gameOver);
+      p2.updateAI(gameOver);
+
+      if (p1.hp <= 0 || p2.hp <= 0) {
+        gameOver = true;
+        handleBattleOutcome();
+
+        if (isOnline && localRole === "host" && socket && activeRoomId) {
+          socket.emit("battle_over", {
+            roomId: activeRoomId,
+            outcome: resolveHostOutcome(),
+          });
+        }
+      }
+
+      if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
+        const now = Date.now();
+        if (now - lastStateSentAt >= 80) {
+          socket.emit("battle_state", {
+            roomId: activeRoomId,
+            state: {
+              tick: gameTime,
+              gameOver,
+              host: serializeFighterState(p1),
+              guest: serializeFighterState(p2),
+            },
+          });
+          lastStateSentAt = now;
         }
       }
     }
   }
+
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
     if (particles[i].life <= 0) particles.splice(i, 1);
@@ -294,10 +512,17 @@ function update(): void {
 }
 
 function draw(): void {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Screen shake
   ctx.save();
+  ctx.scale(dpr, dpr);
+
+  // Keep the original combat world (900x600) and fit it fully into the available phone viewport.
+  ctx.translate(arenaOffsetX, arenaOffsetY);
+  ctx.scale(arenaScale, arenaScale);
+
+  // Screen shake
   if (state.screenShake > 0) {
     ctx.translate(
       (Math.random() - 0.5) * state.screenShake,
@@ -309,10 +534,10 @@ function draw(): void {
 
   // Arena floor
   ctx.fillStyle = "#111108";
-  ctx.fillRect(0, 480, canvas.width, 120);
+  ctx.fillRect(0, ARENA_FLOOR_Y, ARENA_WIDTH, ARENA_HEIGHT - ARENA_FLOOR_Y);
   ctx.shadowBlur = 10; ctx.shadowColor = "#8b6020";
   ctx.strokeStyle = "#6b4010"; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(0, 480); ctx.lineTo(canvas.width, 480); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, ARENA_FLOOR_Y); ctx.lineTo(ARENA_WIDTH, ARENA_FLOOR_Y); ctx.stroke();
   ctx.shadowBlur = 0;
 
   p1.draw(ctx, gameTime);
@@ -324,18 +549,19 @@ function draw(): void {
   if (p1 instanceof JadeMageFighter) p1.drawGlobalOverlay(ctx, gameTime);
   if (p2 instanceof JadeMageFighter) p2.drawGlobalOverlay(ctx, gameTime);
 
-  ctx.restore();
-
   if (gameOver) {
     drawGameOver();
+    ctx.restore();
     return;
   }
+
+  ctx.restore();
   requestAnimationFrame(loop);
 }
 
 function drawGameOver(): void {
   ctx.fillStyle = "rgba(0,0,0,0.82)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
   const p1Win = p1.hp > 0 && p2.hp <= 0;
   const p2Win = p2.hp > 0 && p1.hp <= 0;
@@ -349,12 +575,12 @@ function drawGameOver(): void {
   ctx.textAlign  = "center";
   ctx.font       = "bold 26px \"Press Start 2P\"";
   ctx.shadowBlur = 30; ctx.shadowColor = winnerColor; ctx.fillStyle = "#fff";
-  ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2);
+  ctx.fillText(winnerText, ARENA_WIDTH / 2, ARENA_HEIGHT / 2);
 
   ctx.shadowBlur = 0;
   ctx.font       = "10px \"Press Start 2P\"";
   ctx.fillStyle  = "#6b4810";
-  ctx.fillText("\u041d\u0410\u0416\u041c\u0418 \u041a\u041d\u041e\u041f\u041a\u0423 \u041d\u0418\u0416\u0415", canvas.width / 2, canvas.height / 2 + 56);
+  ctx.fillText("\u041d\u0410\u0416\u041c\u0418 \u041a\u041d\u041e\u041f\u041a\u0423 \u041d\u0418\u0416\u0415", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 56);
 
   const btn = document.getElementById("backBtn") as HTMLElement | null;
   if (btn) btn.style.display = "block";
