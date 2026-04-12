@@ -1,5 +1,5 @@
 // menu.ts — entry point for menu.html
-import { CHAR_META, getNick, getAvatar, getCharId, getCoins } from "./player.js";
+import { CHAR_META, getNick, getAvatar, getCharId, getCoins, syncProfileToServer } from "./player.js";
 import { drawCharacterPreview } from "./fighter.js";
 // import { Knight3D } from "./three-knight.js"; // Removed 3D
 // ── Navigation ──────────────────────────────────────────────────────────────
@@ -114,6 +114,7 @@ async function initMenuUI() {
     if (!currentCharId)
         return;
     const meta = CHAR_META[currentCharId];
+    void syncProfileToServer({ username: nick, charId: charId });
     const avatar = getAvatar();
     const coins = getCoins();
     // Apply dynamic theme to background and buttons

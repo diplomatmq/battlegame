@@ -187,6 +187,54 @@ export function getTelegramUser(): TelegramUser | null {
   return tg?.initDataUnsafe?.user ?? null;
 }
 
+function getStoredTelegramId(): string | null {
+  const fromStorage = localStorage.getItem("tgUserId");
+  if (fromStorage) return fromStorage;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const id = (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (id) {
+      const asText = String(id);
+      localStorage.setItem("tgUserId", asText);
+      return asText;
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+export async function syncProfileToServer(override?: { username?: string | null; charId?: CharId | null }): Promise<void> {
+  const telegramId = getStoredTelegramId();
+  if (!telegramId) return;
+
+  const username = override && override.username !== undefined
+    ? override.username
+    : getNick();
+  const charId = override && override.charId !== undefined
+    ? override.charId
+    : getCharId();
+
+  const payload = {
+    telegram_id: telegramId,
+    username: username ?? `player_${telegramId}`,
+    character_id: charId ?? null,
+    faction: "human",
+  };
+
+  try {
+    await fetch("/api/sync-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // ignore network errors, sync will retry on next page load
+  }
+}
+
 // ── Enemy roster (random opponent each fight) ─────────────────────────────────
 export interface EnemyDef {
   id: string; name: string; charType: string;
@@ -194,17 +242,16 @@ export interface EnemyDef {
   atk: number; def: number; spd: number;
 }
 export const ENEMY_ROSTER: EnemyDef[] = [
-  { id: "troll_warrior",  name: "\u0422\u0420\u041e\u041b\u041b\u042c \u0412\u041e\u0418\u041d",        charType: "troll",  color: "#cc3300", maxHp: 1100, atk: 3, def: 2, spd: 1 },
-  { id: "dark_mage",      name: "\u0422\u0415\u041c\u041d\u042b\u0419 \u041c\u0410\u0413",              charType: "mage",   color: "#9900cc", maxHp:  850, atk: 4, def: 1, spd: 4 },
-  { id: "orc_raider",     name: "\u041e\u0420\u041a \u041d\u0410\u041b\u0415\u0422\u0427\u0418\u041a",  charType: "troll",  color: "#558822", maxHp:  800, atk: 5, def: 1, spd: 5 },
-  { id: "iron_golem",     name: "\u0416\u0415\u041b\u0415\u0417\u041d\u042b\u0419 \u0413\u041e\u041b\u0415\u041c", charType: "knight", color: "#8899aa", maxHp: 1400, atk: 2, def: 8, spd: 1 },
-  { id: "shadow_killer",  name: "\u0423\u0411\u0418\u0419\u0426\u0410 \u0422\u0415\u041d\u0415\u0419",  charType: "killer", color: "#aa0066", maxHp:  700, atk: 6, def: 1, spd: 6 },
-  { id: "stone_giant",    name: "\u041a\u0410\u041c\u0415\u041d\u041d\u042b\u0419 \u0413\u0418\u0413\u0410\u041d\u0422", charType: "troll", color: "#776655", maxHp: 1500, atk: 4, def: 5, spd: 1 },
-  { id: "blood_knight",   name: "\u041a\u0420\u041e\u0412\u0410\u0412\u042b\u0419 \u0420\u042b\u0426\u0410\u0420\u042c", charType: "knight", color: "#cc0022", maxHp:  950, atk: 5, def: 4, spd: 2 },
-  { id: "scarlet_assassin", name: "\u0410\u041b\u042b\u0419 \u0423\u0411\u0418\u0419\u0426\u0410", charType: "scarlet_assassin", color: "#d6152e", maxHp: 820, atk: 6, def: 2, spd: 7 },
-  { id: "necromancer",      name: "\u041d\u0415\u041a\u0420\u041e\u041c\u0410\u041d\u0422",     charType: "necromancer",      color: "#7a4ab8", maxHp: 980, atk: 5, def: 3, spd: 3 },
-  { id: "berserker",        name: "\u0411\u0415\u0420\u0421\u0415\u0420\u041a",       charType: "berserker",        color: "#c86a1d", maxHp: 1250, atk: 7, def: 2, spd: 3 },
-  { id: "goblin",           name: "\u0413\u041e\u0411\u041b\u0418\u041d",         charType: "goblin",           color: "#5fbf3a", maxHp: 760, atk: 4, def: 1, spd: 7 },
+  { id: "cryo_knight",         name: "\u041a\u0420\u0418\u041e \u0420\u042b\u0426\u0410\u0420\u042c",         charType: "cryo_knight",      color: "#4ac8e8", maxHp: 1150, atk: 4, def: 6, spd: 2 },
+  { id: "jade_mage",           name: "\u041d\u0415\u0424\u0420\u0418\u0422 \u041c\u0410\u0413",         charType: "mage",             color: "#00e884", maxHp: 840,  atk: 5, def: 2, spd: 4 },
+  { id: "scarlet_assassin",    name: "\u0410\u041b\u042b\u0419 \u0423\u0411\u0418\u0419\u0426\u0410",       charType: "scarlet_assassin", color: "#d6152e", maxHp: 820,  atk: 6, def: 2, spd: 7 },
+  { id: "scarlet_duelist",     name: "\u0410\u041b\u042b\u0419 \u0414\u0423\u042d\u041b\u042f\u041d\u0422",      charType: "scarlet_assassin", color: "#e0142f", maxHp: 780,  atk: 7, def: 1, spd: 8 },
+  { id: "necromancer",         name: "\u041d\u0415\u041a\u0420\u041e\u041c\u0410\u041d\u0422",            charType: "necromancer",      color: "#7a4ab8", maxHp: 980,  atk: 5, def: 3, spd: 3 },
+  { id: "bone_archon",         name: "\u041a\u041e\u0421\u0422\u042f\u041d\u041e\u0419 \u0410\u0420\u0425\u041e\u041d\u0422",    charType: "necromancer",      color: "#8a5bcc", maxHp: 920,  atk: 6, def: 2, spd: 4 },
+  { id: "berserker",           name: "\u0411\u0415\u0420\u0421\u0415\u0420\u041a",              charType: "berserker",        color: "#c86a1d", maxHp: 1250, atk: 7, def: 2, spd: 3 },
+  { id: "frenzy_berserker",    name: "\u042f\u0420\u041e\u0421\u0422\u041d\u042b\u0419 \u0411\u0415\u0420\u0421\u0415\u0420\u041a",   charType: "berserker",        color: "#dd7b21", maxHp: 1180, atk: 8, def: 1, spd: 4 },
+  { id: "goblin",              name: "\u0413\u041e\u0411\u041b\u0418\u041d",                charType: "goblin",           color: "#5fbf3a", maxHp: 760,  atk: 4, def: 1, spd: 7 },
+  { id: "goblin_alchemist",    name: "\u0413\u041e\u0411\u041b\u0418\u041d \u0410\u041b\u0425\u0418\u041c\u0418\u041a",        charType: "goblin",           color: "#74d84b", maxHp: 730,  atk: 5, def: 1, spd: 8 },
 ];
 export function getRandomEnemy(): EnemyDef {
   return ENEMY_ROSTER[Math.floor(Math.random() * ENEMY_ROSTER.length)];
