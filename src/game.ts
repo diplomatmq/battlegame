@@ -454,47 +454,56 @@ function update(): void {
   Math.random = pseudoRandom; // sync rng
   
   if (!gameOver) {
-    if (isOnline && localRole === "guest") {
-      if (pendingRemoteState) {
-        // Host sends host/guest slots; map them into the local view where p1 is always "you".
-        applySyncedFighterState(p2, pendingRemoteState.host);
-        applySyncedFighterState(p1, pendingRemoteState.guest);
-        syncHpBars();
-        if (pendingRemoteState.gameOver) {
-          gameOver = true;
-          handleBattleOutcome();
-        }
-      }
-    } else {
-      p1.updateAI(gameOver);
-      p2.updateAI(gameOver);
+    // Both Host and Guest simulate locally for smoothness
+    p1.updateAI(gameOver);
+    p2.updateAI(gameOver);
 
-      if (p1.hp <= 0 || p2.hp <= 0) {
+    if (isOnline && localRole === "guest" && pendingRemoteState) {
+      // Guest occasionally corrects position/hp from host state if drift occurs
+      // We use a small interpolation to avoid snapping
+      const driftX1 = Math.abs(p1.x - pendingRemoteState.guest.x);
+      const driftX2 = Math.abs(p2.x - pendingRemoteState.host.x);
+      
+      if (driftX1 > 5) p1.x += (pendingRemoteState.guest.x - p1.x) * 0.2;
+      if (driftX2 > 5) p2.x += (pendingRemoteState.host.x - p2.x) * 0.2;
+      
+      // HP is more critical, but still interpolate for bars
+      if (Math.abs(p1.hp - pendingRemoteState.guest.hp) > 2) p1.hp = pendingRemoteState.guest.hp;
+      if (Math.abs(p2.hp - pendingRemoteState.host.hp) > 2) p2.hp = pendingRemoteState.host.hp;
+      
+      syncHpBars();
+      
+      if (pendingRemoteState.gameOver) {
         gameOver = true;
         handleBattleOutcome();
-
-        if (isOnline && localRole === "host" && socket && activeRoomId) {
-          socket.emit("battle_over", {
-            roomId: activeRoomId,
-            outcome: resolveHostOutcome(),
-          });
-        }
       }
+    }
 
-      if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
-        const now = Date.now();
-        if (now - lastStateSentAt >= 80) {
-          socket.emit("battle_state", {
-            roomId: activeRoomId,
-            state: {
-              tick: gameTime,
-              gameOver,
-              host: serializeFighterState(p1),
-              guest: serializeFighterState(p2),
-            },
-          });
-          lastStateSentAt = now;
-        }
+    if (p1.hp <= 0 || p2.hp <= 0) {
+      gameOver = true;
+      handleBattleOutcome();
+
+      if (isOnline && localRole === "host" && socket && activeRoomId) {
+        socket.emit("battle_over", {
+          roomId: activeRoomId,
+          outcome: resolveHostOutcome(),
+        });
+      }
+    }
+
+    if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
+      const now = Date.now();
+      if (now - lastStateSentAt >= 100) { // slightly lower frequency is fine with local sim
+        socket.emit("battle_state", {
+          roomId: activeRoomId,
+          state: {
+            tick: gameTime,
+            gameOver,
+            host: serializeFighterState(p1),
+            guest: serializeFighterState(p2),
+          },
+        });
+        lastStateSentAt = now;
       }
     }
   }
