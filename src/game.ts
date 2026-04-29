@@ -584,8 +584,7 @@ function draw(): void {
 
   if (gameOver) {
     drawGameOver();
-    ctx.restore();
-    return;
+    // Do NOT return here, let requestAnimationFrame continue to keep the screen drawing
   }
 
   ctx.restore();
@@ -633,7 +632,10 @@ function drawGameOver(): void {
   const btn = document.getElementById("backBtn");
   if (btn) {
     btn.style.setProperty("display", "block", "important");
-    btn.style.opacity = "1";
+    btn.style.setProperty("opacity", "1", "important");
+    btn.style.setProperty("visibility", "visible", "important");
+    btn.style.setProperty("z-index", "9999", "important");
+    btn.style.setProperty("position", "relative", "important");
   }
 }
 
