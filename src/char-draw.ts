@@ -85,7 +85,7 @@ export function drawNecromancer(ctx: CanvasRenderingContext2D, gt: number, flash
     ctx.fillRect(-28, -100, 5, 80);
     
     // Staff Orb
-    ctx.shadowBlur = 15 + pulse * 10;
+    ctx.shadowBlur = 5 + pulse * 5;
     ctx.shadowColor = color;
     ctx.fillStyle = flash ? "#fff" : color;
     ctx.beginPath(); ctx.arc(-25.5, -105, 8, 0, Math.PI * 2); ctx.fill();
@@ -201,7 +201,7 @@ export function drawMage(ctx: CanvasRenderingContext2D, gt: number, flash: boole
     ctx.fillRect(-22, -90, 4, 80);
     
     // Crystal
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 5;
     ctx.shadowColor = "#fff";
     ctx.fillStyle = "#fff";
     ctx.beginPath(); ctx.arc(-20, -95, 7, 0, Math.PI * 2); ctx.fill();

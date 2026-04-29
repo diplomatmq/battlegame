@@ -493,36 +493,45 @@ function update(): void {
   Math.random = pseudoRandom; // sync rng
   
   if (!gameOver) {
-    // Both Host and Guest simulate locally for smoothness
-    p1.updateAI(gameOver);
-    p2.updateAI(gameOver);
+    // HOST: Simulates both and sends state
+    // GUEST: Simulates local character (p1) but trusts HOST for remote character (p2)
+    
+    if (isOnline && localRole === "guest") {
+      p1.updateAI(gameOver); // Guest simulates themselves
+      // p2 (Host) is NOT updated by AI here, we trust the incoming state
+      
+      if (pendingRemoteState) {
+        // Interpolate positions to avoid snapping (lag compensation)
+        p1.x += (pendingRemoteState.guest.x - p1.x) * 0.4;
+        p2.x += (pendingRemoteState.host.x - p2.x) * 0.4;
+        p2.y = pendingRemoteState.host.y; // Y is usually static but good for sync
 
-    if (isOnline && localRole === "guest" && pendingRemoteState) {
-      // Guest occasionally corrects position/hp from host state if drift occurs
-      // We interpolate to keep movement smooth
-      p1.x += (pendingRemoteState.guest.x - p1.x) * 0.3;
-      p2.x += (pendingRemoteState.host.x - p2.x) * 0.3;
-      
-      // HP is more critical
-      if (Math.abs(p1.hp - pendingRemoteState.guest.hp) > 1) p1.hp = pendingRemoteState.guest.hp;
-      if (Math.abs(p2.hp - pendingRemoteState.host.hp) > 1) p2.hp = pendingRemoteState.host.hp;
-      
-      // Force fighter state if they desync too much (e.g. one thinks it's attacking, other doesn't)
-      // This helps fix the "standing still" issue if local AI failed to transition
-      if (p1.fighterState !== pendingRemoteState.guest.state) p1.fighterState = pendingRemoteState.guest.state as any;
-      if (p2.fighterState !== pendingRemoteState.host.state) p2.fighterState = pendingRemoteState.host.state as any;
-
-      syncHpBars();
-      
-      if (pendingRemoteState.gameOver) {
-        gameOver = true;
-        handleBattleOutcome();
+        // Correct critical states
+        p1.hp = pendingRemoteState.guest.hp;
+        p2.hp = pendingRemoteState.host.hp;
+        
+        // Sync fighter states (using correct field names!)
+        if (p1.fighterState !== pendingRemoteState.guest.fighterState) {
+          p1.fighterState = pendingRemoteState.guest.fighterState as any;
+        }
+        if (p2.fighterState !== pendingRemoteState.host.fighterState) {
+          p2.fighterState = pendingRemoteState.host.fighterState as any;
+        }
+        
+        syncHpBars();
+        
+        if (pendingRemoteState.gameOver) {
+          gameOver = true;
+          handleBattleOutcome();
+        }
       }
-    }
+    } else {
+      // Offline or Host: simulate everything
+      p1.updateAI(gameOver);
+      p2.updateAI(gameOver);
 
-    // Host is the authority for battle end
-    if (p1.hp <= 0 || p2.hp <= 0) {
-      if (!isOnline || localRole === "host") {
+      // Host authority for battle end
+      if (p1.hp <= 0 || p2.hp <= 0) {
         gameOver = true;
         handleBattleOutcome();
 
@@ -533,25 +542,27 @@ function update(): void {
           });
         }
       }
-    }
 
-    if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
-      const now = Date.now();
-      if (now - lastStateSentAt >= 100) { 
-        socket.emit("battle_state", {
-          roomId: activeRoomId,
-          state: {
-            tick: gameTime,
-            gameOver,
-            host: serializeFighterState(p1),
-            guest: serializeFighterState(p2),
-          },
-        });
-        lastStateSentAt = now;
+      // Host sends state
+      if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
+        const now = Date.now();
+        if (now - lastStateSentAt >= 50) { // Higher frequency (20fps) for smoother sync
+          socket.emit("battle_state", {
+            roomId: activeRoomId,
+            state: {
+              tick: gameTime,
+              gameOver,
+              host: serializeFighterState(p1),
+              guest: serializeFighterState(p2),
+            },
+          });
+          lastStateSentAt = now;
+        }
       }
     }
   }
 
+  // Update visual effects (local-only for performance)
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
     if (particles[i].life <= 0) particles.splice(i, 1);

@@ -645,7 +645,8 @@ export class Fighter {
     const flash = this.hitTimer > 0;
     if (this.hitTimer > 0) this.hitTimer--;
 
-    ctx.shadowBlur  = flash ? 50 : (attacking ? 28 : casting ? 40 : 12);
+    // Performance optimization: reduce shadow blur for mobile/laggy devices
+    ctx.shadowBlur  = flash ? 20 : (attacking ? 10 : casting ? 15 : 5);
     ctx.shadowColor = flash ? "#fff" : this.color;
 
     const legSwing = (moving || attacking) ? Math.sin(gameTime * 0.45) * 11 : 0;

@@ -241,9 +241,9 @@ function drawDiamondCrystal(
   glowStrength: number,
   hitFlash: boolean,
 ): void {
-  const haloRadius = 10 + glowStrength * 20;
+  const haloRadius = 5 + glowStrength * 10;
   const halo = ctx.createRadialGradient(x, y, 1, x, y, haloRadius);
-  halo.addColorStop(0, rgbaHex(JADE.bright, 0.4 + glowStrength * 0.35));
+  halo.addColorStop(0, rgbaHex(JADE.bright, 0.3 + glowStrength * 0.2));
   halo.addColorStop(1, rgbaHex(JADE.bright, 0));
   ctx.fillStyle = halo;
   ctx.beginPath();
