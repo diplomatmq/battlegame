@@ -270,31 +270,39 @@ function handleBattleOutcome(): void {
   if (outcomeHandled) return;
   outcomeHandled = true;
 
-  // Determine who won if not forced
   const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
   const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
 
   if (hostWins) {
-    p1.fighterState = "victory";
-    p2.fighterState = "death";
-    p2.hp = 0;
+    p1.fighterState = "victory"; p2.fighterState = "death"; p2.hp = 0;
     if (localRole === "host") { addXP(50); recordFightWon(); }
   } else if (guestWins) {
-    p1.fighterState = "death";
-    p2.fighterState = "victory";
-    p1.hp = 0;
+    p1.fighterState = "death"; p2.fighterState = "victory"; p1.hp = 0;
     if (localRole === "guest") { addXP(50); recordFightWon(); }
   } else {
-    p1.fighterState = "death";
-    p2.fighterState = "death";
-    p1.hp = 0; p2.hp = 0;
+    p1.fighterState = "death"; p2.fighterState = "death"; p1.hp = 0; p2.hp = 0;
   }
 
   syncHpBars();
   setBattleStatus("БОЙ ЗАВЕРШЕН");
   
-  // Trigger final UI update
   gameOver = true;
+
+  // --- NEW: TELEGRAM MAIN BUTTON INTEGRATION ---
+  if (window.Telegram && window.Telegram.WebApp) {
+    const tg = window.Telegram.WebApp;
+    tg.MainButton.text = "ВЕРНУТЬСЯ В МЕНЮ";
+    tg.MainButton.show();
+    tg.MainButton.onClick(() => {
+      window.location.replace('menu.html');
+    });
+  }
+
+  // Still try to show the HTML button as a backup
+  const btn = document.getElementById("backBtn");
+  if (btn) {
+    btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 9999 !important; position: absolute !important; bottom: 10% !important; left: 50% !important; transform: translateX(-50%) !important;";
+  }
 }
 
 function startOfflineBattle(): void {
@@ -548,6 +556,12 @@ function draw(): void {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // If game is over, draw the UI and STOP EVERYTHING ELSE
+  if (gameOver) {
+    drawGameOver();
+    return; // Stop rendering the world once game is over
+  }
+
   ctx.save();
   ctx.scale(dpr, dpr);
 
@@ -581,11 +595,6 @@ function draw(): void {
   // Global top-layer pass for Jade Mage sphere so it is never occluded by fighters/effects.
   if (p1 instanceof JadeMageFighter) p1.drawGlobalOverlay(ctx, gameTime);
   if (p2 instanceof JadeMageFighter) p2.drawGlobalOverlay(ctx, gameTime);
-
-  if (gameOver) {
-    drawGameOver();
-    // Do NOT return here, let requestAnimationFrame continue to keep the screen drawing
-  }
 
   ctx.restore();
   requestAnimationFrame(loop);
