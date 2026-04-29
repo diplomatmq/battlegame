@@ -363,64 +363,34 @@ function update() {
     if (isWaiting || !hasStarted)
         return; // wait for match to start
     gameTime++;
-    if (isOnline) {
-        if (!gameOver && pendingRemoteState) {
-            // Both players are now "GUESTS" of the server authority.
-            // Map host/guest from server to local fighters
-            const serverHost = pendingRemoteState.host;
-            const serverGuest = pendingRemoteState.guest;
-            // Use the role to determine which server character is YOU (p1)
-            const myState = localRole === "host" ? serverHost : serverGuest;
-            const oppState = localRole === "host" ? serverGuest : serverHost;
-            // Smooth interpolation to server positions
-            p1.x += (myState.x - p1.x) * 0.3; // Slower interp for smoother movement
-            p2.x += (oppState.x - p2.x) * 0.3;
-            // Server says we're at 480 floor usually
-            p1.y = myState.y;
-            p2.y = oppState.y;
-            // Detect damage for visual effects
-            if (myState.hp < p1.hp) {
-                const dmg = p1.hp - myState.hp;
-                p1.hitTimer = 15;
-                state.screenShake = 12;
-                damageTexts.push(new DamageText(p1.x, p1.y - p1.height, dmg, "#fff"));
-                for (let i = 0; i < 25; i++)
-                    particles.push(new Particle(p1.x, p1.y - p1.height / 2, p2.color, 1.6));
-            }
-            if (oppState.hp < p2.hp) {
-                const dmg = p2.hp - oppState.hp;
-                p2.hitTimer = 15;
-                state.screenShake = 12;
-                damageTexts.push(new DamageText(p2.x, p2.y - p2.height, dmg, "#fff"));
-                for (let i = 0; i < 25; i++)
-                    particles.push(new Particle(p2.x, p2.y - p2.height / 2, p1.color, 1.6));
-            }
-            p1.hp = myState.hp;
-            p2.hp = oppState.hp;
-            p1.fighterState = myState.fighterState;
-            p2.fighterState = oppState.fighterState;
-            p1.hitTimer = myState.hitTimer;
-            p2.hitTimer = oppState.hitTimer;
-            p1.isFacingRight = p2.x > p1.x;
-            p2.isFacingRight = p1.x > p2.x;
-            syncHpBars();
-            if (pendingRemoteState.gameOver) {
-                gameOver = true;
-                handleBattleOutcome();
+    // SYNCED DETERMINISTIC SIMULATION
+    // Replace Math.random with seeded pseudoRandom for identical results on both clients
+    const originalMathRandom = Math.random;
+    Math.random = pseudoRandom;
+    if (!gameOver) {
+        p1.updateAI(gameOver);
+        p2.updateAI(gameOver);
+        if (p1.hp <= 0 || p2.hp <= 0) {
+            gameOver = true;
+            handleBattleOutcome();
+            // If online, host reports the final outcome to the server
+            if (isOnline && localRole === "host" && socket && activeRoomId) {
+                socket.emit("battle_over", {
+                    roomId: activeRoomId,
+                    outcome: resolveHostOutcome()
+                });
             }
         }
-    }
-    else {
-        // Offline mode: run local AI
-        if (!gameOver) {
-            p1.updateAI(gameOver);
-            p2.updateAI(gameOver);
-            if (p1.hp <= 0 || p2.hp <= 0) {
-                gameOver = true;
-                handleBattleOutcome();
-            }
+        // Optional: Synchronize with server heartbeats if they exist
+        if (isOnline && pendingRemoteState) {
+            // We can use server state to "correct" small drifts, 
+            // but for an auto-battler with seeded RNG, drift should be zero.
+            // For now, we trust the local seeded simulation for maximum "juice".
         }
     }
+    // Restore original Math.random
+    Math.random = originalMathRandom;
+    // Local-only visual updates (particles, etc.)
     for (let i = particles.length - 1; i >= 0; i--) {
         particles[i].update();
         if (particles[i].life <= 0)

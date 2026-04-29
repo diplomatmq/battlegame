@@ -202,12 +202,17 @@ async def play(sid, profile):
         await sio.enter_room(host_sid, room_id)
         await sio.enter_room(sid, room_id)
         
+        # Generate a shared seed for deterministic client-side simulation
+        seed = random.randint(1, 1000000)
+        
         # In real app, fetch profiles from DB. For now use what client sent.
+        # We keep the BattleInstance only to track game state if needed, 
+        # but the clients will run the heavy simulation locally using the seed.
         active_battles[room_id] = BattleInstance(room_id, host_sid, sid, host_profile, profile)
         
-        # Send opponent's profile to each player
-        await sio.emit("startGame", {"roomId": room_id, "isHost": True, "profile": profile}, room=host_sid)
-        await sio.emit("startGame", {"roomId": room_id, "isHost": False, "profile": host_profile}, room=sid)
+        # Send opponent's profile and the shared seed to each player
+        await sio.emit("startGame", {"roomId": room_id, "isHost": True, "profile": profile, "seed": seed}, room=host_sid)
+        await sio.emit("startGame", {"roomId": room_id, "isHost": False, "profile": host_profile, "seed": seed}, room=sid)
     else:
         waiting_player = (sid, profile)
         await sio.emit("waiting", room=sid)
