@@ -553,13 +553,55 @@ function update(): void {
 }
 
 function draw(): void {
+  // Clear the whole canvas with a solid background first
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#0a0e1a"; 
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // If game is over, draw the UI and STOP EVERYTHING ELSE
   if (gameOver) {
-    drawGameOver();
-    return; // Stop rendering the world once game is over
+    // 1. Draw a dark overlay
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
+    const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+
+    let winnerName = "НИЧЬЯ";
+    let winnerColor = "#fff";
+
+    if (hostWins) {
+      winnerName = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ"));
+      winnerColor = p1.color;
+    } else if (guestWins) {
+      winnerName = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ"));
+      winnerColor = p2.color;
+    }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // 2. Draw Winner Text
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = winnerColor;
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 44px Arial, sans-serif";
+    ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 40);
+    
+    // 3. Draw "ПОБЕДИТЕЛЬ" text
+    ctx.shadowBlur = 0;
+    ctx.font = "bold 24px Arial, sans-serif";
+    ctx.fillStyle = winnerColor;
+    ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 + 20);
+
+    // 4. Force back button
+    const btn = document.getElementById("backBtn");
+    if (btn) {
+      btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 9999 !important; position: absolute !important; bottom: 20% !important; left: 50% !important; transform: translateX(-50%) !important; padding: 15px 30px !important; background: #222 !important; color: #fff !important; border: 2px solid " + winnerColor + " !important; border-radius: 10px !important; cursor: pointer !important; font-family: sans-serif !important; font-weight: bold !important;";
+    }
+
+    // Still request next frame to ensure button/text stays there
+    requestAnimationFrame(loop);
+    return;
   }
 
   ctx.save();
