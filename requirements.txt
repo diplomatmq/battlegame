@@ -3,3 +3,5 @@ uvicorn
 python-socketio
 python-engineio
 pydantic
+asyncpg
+aiogram
