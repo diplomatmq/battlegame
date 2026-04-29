@@ -141,7 +141,7 @@ function createFighterByCharType(
   return fighter;
 }
 
-const p1: Fighter = createFighterByCharType(200, 480, "hp-fill-1", true, savedCharId, meta.color);
+let p1: Fighter = createFighterByCharType(200, 480, "hp-fill-1", true, savedCharId, meta.color);
 
 // Apply player stats from equipment/level system
 const stats = getTotalStats();
@@ -229,6 +229,7 @@ let activeRoomId: string | null = null;
 let pendingRemoteState: SyncedBattleState | null = null;
 let lastStateSentAt = 0;
 let outcomeHandled = false;
+let forcedOutcome: MatchOutcome | null = null;
 
 const socket: SocketLike | null = typeof window.io === "function" ? window.io() : null;
 
@@ -269,14 +270,23 @@ function handleBattleOutcome(): void {
   if (outcomeHandled) return;
   outcomeHandled = true;
 
-  if (p1.hp > 0 && p2.hp <= 0) {
+  const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
+  const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+
+  if (hostWins) {
     p1.fighterState = "victory";
     p2.fighterState = "death";
-    addXP(50);
-    recordFightWon();
-  } else if (p2.hp > 0 && p1.hp <= 0) {
+    if (localRole === "host") {
+      addXP(50);
+      recordFightWon();
+    }
+  } else if (guestWins) {
     p1.fighterState = "death";
     p2.fighterState = "victory";
+    if (localRole === "guest") {
+      addXP(50);
+      recordFightWon();
+    }
   } else {
     p1.fighterState = "death";
     p2.fighterState = "death";
@@ -298,11 +308,19 @@ function startOfflineBattle(): void {
 function startOnlineGame(opponentData: OnlineProfile, seed: number) {
   isWaiting = false;
   hasStarted = true;
-  currentSeed = seed || 12345;
   gameOver = false;
   outcomeHandled = false;
+  forcedOutcome = null;
+  gameTime = 0;
   lastStateSentAt = 0;
   state.screenShake = 0;
+  
+  // Set seed BEFORE creating fighters to ensure identical random initialization (auraPhase, etc.)
+  currentSeed = seed || 12345;
+  const originalMathRandom = Math.random;
+  Math.random = pseudoRandom;
+
+  // Clear particles and damage texts
   particles.length = 0;
   damageTexts.length = 0;
   
@@ -323,11 +341,22 @@ function startOnlineGame(opponentData: OnlineProfile, seed: number) {
   }
   if (hp2Fill) hp2Fill.style.background = oppColor;
 
-  p2 = createFighterByCharType(700, 480, "hp-fill-2", false, oppCharType, oppColor);
-  p2.playerAtk = opponentData.atk || 1;
-  p2.playerDef = opponentData.def || 1;
-  p2.playerSpd = opponentData.spd || 1;
+  // Re-initialize both fighters with full current stats from shop/level
+  const myStats = getTotalStats();
+  p1 = createFighterByCharType(200, 480, "hp-fill-1", true, savedCharId, meta.color);
+  p1.playerAtk = myStats.atk;
+   p1.playerDef = myStats.def;
+   p1.playerSpd = myStats.spd;
+   p1.hp = p1.maxHp = myStats.maxHp;
+   p1.equippedWeaponVisual = getEquippedWeaponVisual();
+
+   p2 = createFighterByCharType(700, 480, "hp-fill-2", false, oppCharType, oppColor);
+   p2.playerAtk = opponentData.atk || 1;
+   p2.playerDef = opponentData.def || 1;
+   p2.playerSpd = opponentData.spd || 1;
+   p2.hp = p2.maxHp = opponentData.maxHp || 1000;
   p2.equippedWeaponVisual = opponentData.weaponVisual || null;
+
   p1.setOpponent(p2);
   p2.setOpponent(p1);
 
@@ -339,6 +368,10 @@ function startOnlineGame(opponentData: OnlineProfile, seed: number) {
   };
 
   syncHpBars();
+  setBattleStatus("БОЙ НАЧАЛСЯ!");
+
+  // Restore Math.random
+  Math.random = originalMathRandom;
 }
 
 function playOnline() {
@@ -358,15 +391,19 @@ function playOnline() {
     p2AvatarEl.style.borderColor = "#888";
   }
 
+  const stats = getTotalStats();
+  const weaponVisual = getEquippedWeaponVisual();
+
   // Profile data to send to opponent
   const profile: OnlineProfile = {
     name: p1NameEl.textContent,
     avatar: savedAvatar,
     charType: savedCharId,
-    atk: p1.playerAtk,
-    def: p1.playerDef,
-    spd: p1.playerSpd,
-    weaponVisual: p1.equippedWeaponVisual
+    atk: stats.atk,
+    def: stats.def,
+    spd: stats.spd,
+    maxHp: stats.maxHp,
+    weaponVisual: weaponVisual
   };
 
   socket.emit("play", profile);
@@ -410,9 +447,10 @@ function setupOnlineSocket(): void {
     pendingRemoteState = synced;
   });
 
-  socket.on("battle_over", () => {
+  socket.on("battle_over", (payload: { outcome: MatchOutcome }) => {
     if (localRole === "host") return;
     if (gameOver) return;
+    forcedOutcome = payload.outcome;
     gameOver = true;
     handleBattleOutcome();
   });
@@ -451,6 +489,7 @@ function update(): void {
   if (isWaiting || !hasStarted) return; // wait for match to start
   gameTime++;
   
+  const originalMathRandom = Math.random;
   Math.random = pseudoRandom; // sync rng
   
   if (!gameOver) {
@@ -460,17 +499,19 @@ function update(): void {
 
     if (isOnline && localRole === "guest" && pendingRemoteState) {
       // Guest occasionally corrects position/hp from host state if drift occurs
-      // We use a small interpolation to avoid snapping
-      const driftX1 = Math.abs(p1.x - pendingRemoteState.guest.x);
-      const driftX2 = Math.abs(p2.x - pendingRemoteState.host.x);
+      // We interpolate to keep movement smooth
+      p1.x += (pendingRemoteState.guest.x - p1.x) * 0.3;
+      p2.x += (pendingRemoteState.host.x - p2.x) * 0.3;
       
-      if (driftX1 > 5) p1.x += (pendingRemoteState.guest.x - p1.x) * 0.2;
-      if (driftX2 > 5) p2.x += (pendingRemoteState.host.x - p2.x) * 0.2;
+      // HP is more critical
+      if (Math.abs(p1.hp - pendingRemoteState.guest.hp) > 1) p1.hp = pendingRemoteState.guest.hp;
+      if (Math.abs(p2.hp - pendingRemoteState.host.hp) > 1) p2.hp = pendingRemoteState.host.hp;
       
-      // HP is more critical, but still interpolate for bars
-      if (Math.abs(p1.hp - pendingRemoteState.guest.hp) > 2) p1.hp = pendingRemoteState.guest.hp;
-      if (Math.abs(p2.hp - pendingRemoteState.host.hp) > 2) p2.hp = pendingRemoteState.host.hp;
-      
+      // Force fighter state if they desync too much (e.g. one thinks it's attacking, other doesn't)
+      // This helps fix the "standing still" issue if local AI failed to transition
+      if (p1.fighterState !== pendingRemoteState.guest.state) p1.fighterState = pendingRemoteState.guest.state as any;
+      if (p2.fighterState !== pendingRemoteState.host.state) p2.fighterState = pendingRemoteState.host.state as any;
+
       syncHpBars();
       
       if (pendingRemoteState.gameOver) {
@@ -479,21 +520,24 @@ function update(): void {
       }
     }
 
+    // Host is the authority for battle end
     if (p1.hp <= 0 || p2.hp <= 0) {
-      gameOver = true;
-      handleBattleOutcome();
+      if (!isOnline || localRole === "host") {
+        gameOver = true;
+        handleBattleOutcome();
 
-      if (isOnline && localRole === "host" && socket && activeRoomId) {
-        socket.emit("battle_over", {
-          roomId: activeRoomId,
-          outcome: resolveHostOutcome(),
-        });
+        if (isOnline && localRole === "host" && socket && activeRoomId) {
+          socket.emit("battle_over", {
+            roomId: activeRoomId,
+            outcome: resolveHostOutcome(),
+          });
+        }
       }
     }
 
     if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
       const now = Date.now();
-      if (now - lastStateSentAt >= 100) { // slightly lower frequency is fine with local sim
+      if (now - lastStateSentAt >= 100) { 
         socket.emit("battle_state", {
           roomId: activeRoomId,
           state: {
@@ -572,14 +616,19 @@ function drawGameOver(): void {
   ctx.fillStyle = "rgba(0,0,0,0.82)";
   ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
-  const p1Win = p1.hp > 0 && p2.hp <= 0;
-  const p2Win = p2.hp > 0 && p1.hp <= 0;
-  const winnerText = p1Win
-    ? savedNick.toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b"
-    : p2Win
-      ? enemy.name + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b"
-      : "\u041e\u0411\u041e\u042e\u0414\u041d\u041e\u0415";
-  const winnerColor = p1Win ? p1.color : p2.color;
+  const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
+  const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+
+  let winnerText = "\u041e\u0411\u041e\u042e\u0414\u041d\u041e\u0415";
+  let winnerColor = "#fff";
+
+  if (hostWins) {
+    winnerText = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
+    winnerColor = p1.color;
+  } else if (guestWins) {
+    winnerText = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
+    winnerColor = p2.color;
+  }
 
   ctx.textAlign  = "center";
   ctx.font       = "bold 26px \"Press Start 2P\"";

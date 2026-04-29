@@ -112,11 +112,24 @@ export function addXP(amount: number): boolean {
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
-export interface PlayerStats { atk: number; def: number; spd: number; }
+export interface PlayerStats { 
+  atk: number; 
+  def: number; 
+  spd: number; 
+  maxHp: number; // Added HP to stats
+}
 
 export function getBaseStats(): PlayerStats {
   const lvl = getLevel();
-  return { atk: lvl, def: lvl, spd: lvl };
+  const charId = getCharId() || "cryo_knight";
+  const meta = CHAR_META[charId];
+  // Base stats depend on character choice + level
+  return { 
+    atk: lvl + 2, 
+    def: lvl + 1, 
+    spd: lvl + 1,
+    maxHp: meta.maxHp + (lvl - 1) * 20 
+  };
 }
 
 // ── Equipped items ────────────────────────────────────────────────────────────
@@ -126,18 +139,27 @@ export function getEquipped(): EquippedItems {
   try { return JSON.parse(localStorage.getItem("equippedItems") ?? "null") ?? { weapon: null, armor: null, accessory: null }; }
   catch { return { weapon: null, armor: null, accessory: null }; }
 }
-export function setEquipped(v: EquippedItems): void { localStorage.setItem("equippedItems", JSON.stringify(v)); }
+export function setEquipped(v: EquippedItems): void { 
+  localStorage.setItem("equippedItems", JSON.stringify(v));
+  // Sync to server after changing equipment
+  syncProfileToServer();
+}
 
 export function getTotalStats(): PlayerStats {
   const base = getBaseStats();
   const eq   = getEquipped();
-  let { atk, def, spd } = base;
+  let { atk, def, spd, maxHp } = base;
   for (const id of [eq.weapon, eq.armor, eq.accessory]) {
     if (!id) continue;
     const item = SHOP_CATALOGUE.find(i => i.id === id);
-    if (item) { atk += item.bonus.atk; def += item.bonus.def; spd += item.bonus.spd; }
+    if (item) { 
+      atk += item.bonus.atk; 
+      def += item.bonus.def; 
+      spd += item.bonus.spd; 
+      // Some items might give HP in future, for now items only give ATK/DEF/SPD
+    }
   }
-  return { atk, def, spd };
+  return { atk, def, spd, maxHp };
 }
 
 export function getEquippedWeaponVisual(): WeaponVisual | null {
@@ -216,12 +238,20 @@ export async function syncProfileToServer(override?: { username?: string | null;
   const charId = override && override.charId !== undefined
     ? override.charId
     : getCharId();
+    
+  const stats = getTotalStats();
+  const weaponVisual = getEquippedWeaponVisual();
 
   const payload = {
     telegram_id: telegramId,
     username: username ?? `player_${telegramId}`,
     character_id: charId ?? null,
     faction: "human",
+    atk: stats.atk,
+    def: stats.def,
+    spd: stats.spd,
+    maxHp: stats.maxHp,
+    weaponVisual: weaponVisual
   };
 
   try {
