@@ -493,30 +493,22 @@ function update(): void {
   Math.random = pseudoRandom; // sync rng
   
   if (!gameOver) {
-    // HOST: Simulates both and sends state
-    // GUEST: Simulates local character (p1) but trusts HOST for remote character (p2)
-    
     if (isOnline && localRole === "guest") {
-      p1.updateAI(gameOver); // Guest simulates themselves
-      // p2 (Host) is NOT updated by AI here, we trust the incoming state
-      
+      // Guest doesn't run AI anymore. It just interpolates to host state.
       if (pendingRemoteState) {
-        // Interpolate positions to avoid snapping (lag compensation)
-        p1.x += (pendingRemoteState.guest.x - p1.x) * 0.4;
-        p2.x += (pendingRemoteState.host.x - p2.x) * 0.4;
-        p2.y = pendingRemoteState.host.y; // Y is usually static but good for sync
+        // Position interpolation
+        p1.x += (pendingRemoteState.guest.x - p1.x) * 0.45;
+        p1.y = pendingRemoteState.guest.y;
+        p2.x += (pendingRemoteState.host.x - p2.x) * 0.45;
+        p2.y = pendingRemoteState.host.y;
 
-        // Correct critical states
+        // Force exactly identical state
         p1.hp = pendingRemoteState.guest.hp;
         p2.hp = pendingRemoteState.host.hp;
-        
-        // Sync fighter states (using correct field names!)
-        if (p1.fighterState !== pendingRemoteState.guest.fighterState) {
-          p1.fighterState = pendingRemoteState.guest.fighterState as any;
-        }
-        if (p2.fighterState !== pendingRemoteState.host.fighterState) {
-          p2.fighterState = pendingRemoteState.host.fighterState as any;
-        }
+        p1.fighterState = pendingRemoteState.guest.fighterState;
+        p2.fighterState = pendingRemoteState.host.fighterState;
+        p1.hitTimer = pendingRemoteState.guest.hitTimer;
+        p2.hitTimer = pendingRemoteState.host.hitTimer;
         
         syncHpBars();
         
@@ -526,11 +518,10 @@ function update(): void {
         }
       }
     } else {
-      // Offline or Host: simulate everything
+      // Host or Offline: run full AI simulation
       p1.updateAI(gameOver);
       p2.updateAI(gameOver);
 
-      // Host authority for battle end
       if (p1.hp <= 0 || p2.hp <= 0) {
         gameOver = true;
         handleBattleOutcome();
@@ -543,10 +534,9 @@ function update(): void {
         }
       }
 
-      // Host sends state
       if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
         const now = Date.now();
-        if (now - lastStateSentAt >= 50) { // Higher frequency (20fps) for smoother sync
+        if (now - lastStateSentAt >= 45) { // ~22 updates per second
           socket.emit("battle_state", {
             roomId: activeRoomId,
             state: {
@@ -562,7 +552,7 @@ function update(): void {
     }
   }
 
-  // Update visual effects (local-only for performance)
+  // Local particles/damage text update
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
     if (particles[i].life <= 0) particles.splice(i, 1);
