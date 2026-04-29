@@ -166,22 +166,12 @@ active_battles: Dict[str, BattleInstance] = {}
 async def battle_loop():
     while True:
         start_time = time.time()
-        rooms_to_remove = []
-        for room_id, battle in active_battles.items():
-            battle.update()
-            state = battle.get_state()
-            await sio.emit("battle_state", {"state": state}, room=room_id)
-            
-            if battle.game_over:
-                await sio.emit("battle_over", {"outcome": battle.winner}, room=room_id)
-                rooms_to_remove.append(room_id)
+        # The server no longer runs the simulation. 
+        # Clients are synced via the shared seed and report their own outcomes.
+        # We can still check for timed-out rooms here if needed.
         
-        for rid in rooms_to_remove:
-            del active_battles[rid]
-            
-        # Maintain ~20 FPS
-        sleep_time = max(0, 0.05 - (time.time() - start_time))
-        await asyncio.sleep(sleep_time)
+        # Maintain a lower heartbeat frequency
+        await asyncio.sleep(1.0)
 
 @fastapi_app.on_event("startup")
 async def startup_event():

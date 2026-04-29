@@ -270,35 +270,31 @@ function handleBattleOutcome(): void {
   if (outcomeHandled) return;
   outcomeHandled = true;
 
-  // Ensure HP is set to 0 for the loser to avoid UI confusion
+  // Determine who won if not forced
   const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
   const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
 
   if (hostWins) {
     p1.fighterState = "victory";
     p2.fighterState = "death";
-    p2.hp = 0; // Force zero HP visually
-    if (localRole === "host") {
-      addXP(50);
-      recordFightWon();
-    }
+    p2.hp = 0;
+    if (localRole === "host") { addXP(50); recordFightWon(); }
   } else if (guestWins) {
     p1.fighterState = "death";
     p2.fighterState = "victory";
-    p1.hp = 0; // Force zero HP visually
-    if (localRole === "guest") {
-      addXP(50);
-      recordFightWon();
-    }
+    p1.hp = 0;
+    if (localRole === "guest") { addXP(50); recordFightWon(); }
   } else {
     p1.fighterState = "death";
     p2.fighterState = "death";
-    p1.hp = 0;
-    p2.hp = 0;
+    p1.hp = 0; p2.hp = 0;
   }
 
   syncHpBars();
-  setBattleStatus("МАТЧ ЗАВЕРШЕН");
+  setBattleStatus("БОЙ ЗАВЕРШЕН");
+  
+  // Trigger final UI update
+  gameOver = true;
 }
 
 function startOfflineBattle(): void {
@@ -597,52 +593,47 @@ function draw(): void {
 }
 
 function drawGameOver(): void {
-  // Clear any existing dark overlays if they somehow exist
+  // Semi-transparent background
   ctx.fillStyle = "rgba(0,0,0,0.85)";
   ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
   const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
   const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
 
-  let winnerText = "ОБОЮДНОЕ";
+  let winnerName = "НИЧЬЯ";
   let winnerColor = "#fff";
 
   if (hostWins) {
-    winnerText = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " ПОБЕДИЛ";
+    winnerName = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ"));
     winnerColor = p1.color;
   } else if (guestWins) {
-    winnerText = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " ПОБЕДИЛ";
+    winnerName = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ"));
     winnerColor = p2.color;
   }
 
-  // Draw Glow
-  ctx.shadowBlur = 40;
-  ctx.shadowColor = winnerColor;
-  
+  ctx.save();
   ctx.textAlign  = "center";
+  
+  // Winner Text with Glow
+  ctx.shadowBlur = 30;
+  ctx.shadowColor = winnerColor;
   ctx.fillStyle = "#fff";
+  ctx.font = "bold 40px sans-serif"; // Use system fonts for reliability
+  ctx.fillText(winnerName.toUpperCase(), ARENA_WIDTH / 2, ARENA_HEIGHT / 2 - 40);
   
-  // Winner Text
-  ctx.font = "bold 32px 'Orbitron', sans-serif";
-  ctx.fillText(winnerText, ARENA_WIDTH / 2, ARENA_HEIGHT / 2 - 20);
-  
+  // "WINS" text
   ctx.shadowBlur = 0;
-  
-  // Subtext
-  ctx.font = "14px 'Inter', sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.fillText("БОЙ ЗАВЕРШЕН", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 30);
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillStyle = winnerColor;
+  ctx.fillText("ПОБЕДИТЕЛЬ", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 10);
 
-  // Make sure the button is visible
-  const btn = document.getElementById("backBtn") as HTMLElement | null;
+  ctx.restore();
+
+  // Show the back button
+  const btn = document.getElementById("backBtn");
   if (btn) {
-    btn.style.display = "block";
+    btn.style.setProperty("display", "block", "important");
     btn.style.opacity = "1";
-    btn.style.visibility = "visible";
-    // Force a small delay to ensure DOM update
-    setTimeout(() => {
-        if (btn) btn.style.display = "block";
-    }, 100);
   }
 }
 
