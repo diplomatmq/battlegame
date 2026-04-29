@@ -3,7 +3,7 @@ import random
 import time
 import asyncio
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -17,23 +17,19 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Конфигурация из переменных окружения ---
+# --- Конфигурация ---
 DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 WEB_APP_BASE_URL = os.getenv("WEB_APP_BASE_URL", WEBHOOK_URL)
 
-# --- FastAPI & Socket.io setup ---
+# --- FastAPI & Socket.io ---
 fastapi_app = FastAPI()
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*', logger=True, engineio_logger=True)
-# Railway and Railpack look for 'app' by default
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
 app = socketio.ASGIApp(sio, fastapi_app)
 
-# --- Telegram Bot setup (aiogram) ---
 bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
 dp = Dispatcher() if TELEGRAM_TOKEN else None
-
-# --- Database Pool ---
 pool = None
 
 async def get_db_pool():
@@ -42,205 +38,145 @@ async def get_db_pool():
         pool = await asyncpg.create_pool(DATABASE_URL)
     return pool
 
+# --- Server-Side Battle Engine ---
+class ServerFighter:
+    def __init__(self, side: str, profile: Dict):
+        self.side = side # 'host' or 'guest'
+        self.x = 200 if side == 'host' else 700
+        self.y = 480
+        self.hp = float(profile.get('maxHp', 1000))
+        self.max_hp = self.hp
+        self.atk = float(profile.get('atk', 1.0))
+        self.def_ = float(profile.get('def', 1.0))
+        self.spd = float(profile.get('spd', 1.0))
+        self.char_type = profile.get('charType', 'knight')
+        self.state = "idle"
+        self.state_timer = 0
+        self.attack_cd = 0
+        self.hit_timer = 0
+
+    def serialize(self):
+        return {
+            "x": self.x, "y": self.y, "hp": self.hp,
+            "fighterState": self.state, "hitTimer": self.hit_timer,
+            "charType": self.char_type
+        }
+
+class BattleInstance:
+    def __init__(self, room_id: str, host_sid: str, guest_sid: str, host_p: Dict, guest_p: Dict):
+        self.room_id = room_id
+        self.host_sid = host_sid
+        self.guest_sid = guest_sid
+        self.f1 = ServerFighter('host', host_p)
+        self.f2 = ServerFighter('guest', guest_p)
+        self.game_over = False
+        self.winner = None
+
+    def update(self):
+        if self.game_over: return
+        
+        # Simple movement/attack logic (simplified port of TS logic)
+        dist = abs(self.f1.x - self.f2.x)
+        
+        for f, opp in [(self.f1, self.f2), (self.f2, self.f1)]:
+            if f.hit_timer > 0: f.hit_timer -= 1
+            if f.state_timer > 0: f.state_timer -= 1
+            if f.attack_cd > 0: f.attack_cd -= 1
+            
+            if f.state == "idle":
+                if f.attack_cd <= 0:
+                    f.state = "moving"
+                else:
+                    f.x += (200 if f.side == 'host' else 700 - f.x) * 0.05
+            
+            if f.state == "moving":
+                target_x = opp.x - 60 if f.x < opp.x else opp.x + 60
+                f.x += (target_x - f.x) * 0.1
+                if dist < 80:
+                    f.state = "attacking"
+                    f.state_timer = 15
+                    f.attack_cd = 60
+                    # Deal damage
+                    dmg = max(5, (f.atk * 40) - (opp.def_ * 5))
+                    opp.hp -= dmg
+                    opp.hit_timer = 10
+            
+            if f.state == "attacking" and f.state_timer <= 0:
+                f.state = "idle"
+
+        if self.f1.hp <= 0 or self.f2.hp <= 0:
+            self.game_over = True
+            self.winner = "host" if self.f2.hp <= 0 else "guest"
+
+    def get_state(self):
+        return {
+            "host": self.f1.serialize(),
+            "guest": self.f2.serialize(),
+            "gameOver": self.game_over
+        }
+
+active_battles: Dict[str, BattleInstance] = {}
+
+async def battle_loop():
+    while True:
+        start_time = time.time()
+        rooms_to_remove = []
+        for room_id, battle in active_battles.items():
+            battle.update()
+            state = battle.get_state()
+            await sio.emit("battle_state", {"state": state}, room=room_id)
+            
+            if battle.game_over:
+                await sio.emit("battle_over", {"outcome": battle.winner}, room=room_id)
+                rooms_to_remove.append(room_id)
+        
+        for rid in rooms_to_remove:
+            del active_battles[rid]
+            
+        # Maintain ~20 FPS
+        sleep_time = max(0, 0.05 - (time.time() - start_time))
+        await asyncio.sleep(sleep_time)
+
 @fastapi_app.on_event("startup")
 async def startup_event():
     await get_db_pool()
+    asyncio.create_task(battle_loop())
     if bot and WEBHOOK_URL:
-        webhook_path = f"/bot/{TELEGRAM_TOKEN}"
-        url = f"{WEBHOOK_URL.rstrip('/')}{webhook_path}"
-        await bot.set_webhook(url)
-        logger.info(f"Telegram webhook set to: {url}")
+        await bot.set_webhook(f"{WEBHOOK_URL.rstrip('/')}/bot/{TELEGRAM_TOKEN}")
 
-@fastapi_app.on_event("shutdown")
-async def shutdown_event():
-    if pool:
-        await pool.close()
-
-# --- Telegram Webhook Endpoint ---
-@fastapi_app.post(f"/bot/{{token}}")
-async def telegram_webhook(token: str, request: Request):
-    if token != TELEGRAM_TOKEN:
-        return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    
-    update = await request.json()
-    # Обработка обновлений через aiogram
-    if dp:
-        telegram_update = types.Update(**update)
-        await dp.feed_update(bot, telegram_update)
-    return {"ok": True}
-
-# --- Bot Handlers ---
-if dp:
-    @dp.message()
-    async def start_handler(message: types.Message):
-        if message.text == "/start":
-            user_id = message.from_user.id
-            username = message.from_user.username or message.from_user.first_name
-            
-            # Регистрация в БД (аналог Node.js logic)
-            db = await get_db_pool()
-            if db:
-                await db.execute(
-                    """INSERT INTO players (telegram_id, username)
-                       VALUES ($1, $2)
-                       ON CONFLICT (telegram_id) DO UPDATE SET username = EXCLUDED.username""",
-                    str(user_id), username
-                )
-                
-                char_res = await db.fetchrow(
-                    "SELECT character_id FROM user_characters uc JOIN players p ON p.id = uc.user_id WHERE p.telegram_id = $1 LIMIT 1",
-                    str(user_id)
-                )
-                target_page = "menu.html" if char_res else "character.html"
-            else:
-                target_page = "character.html"
-
-            url = f"{WEB_APP_BASE_URL.rstrip('/')}/index.html?page={target_page}&tg={user_id}"
-            
-            kb = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="Играть", web_app=WebAppInfo(url=url))]
-            ])
-            
-            await message.answer("Добро пожаловать в Battle Realm! Нажми 'Играть', чтобы войти в игру.", reply_markup=kb)
-
-# --- Static files ---
-if os.path.exists("dist"):
-    fastapi_app.mount("/dist", StaticFiles(directory="dist"), name="dist")
-
-# --- Socket.io Logic ---
-waiting_player: Optional[Dict[str, Any]] = None
-active_matches: Dict[str, Dict[str, Any]] = {}
-
-def normalize_profile(raw: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "name": str(raw.get("name", "Игрок"))[:20],
-        "avatar": raw.get("avatar"),
-        "charType": str(raw.get("charType", "mage")),
-        "atk": float(raw.get("atk", 1.0)),
-        "def": float(raw.get("def", 1.0)),
-        "spd": float(raw.get("spd", 1.0)),
-        "maxHp": float(raw.get("maxHp", 1000.0)),
-        "weaponVisual": raw.get("weaponVisual"),
-    }
-
-@sio.event
-async def connect(sid, environ):
-    logger.info(f"Connected: {sid}")
-
+# --- Rest of handlers (Play, Connect, Sync) ---
+waiting_player = None
 @sio.event
 async def play(sid, profile):
     global waiting_player
-    normalized = normalize_profile(profile)
-    
-    if waiting_player and waiting_player["sid"] == sid:
+    if waiting_player and waiting_player != sid:
+        host_sid = waiting_player
         waiting_player = None
-        
-    if sid in active_matches:
-        match = active_matches.pop(sid, None)
-        if match:
-            opp_sid = match["opponent_id"]
-            active_matches.pop(opp_sid, None)
-            await sio.emit("opponent_left", room=opp_sid)
-
-    if waiting_player:
-        host = waiting_player
-        waiting_player = None
-        
-        room_id = f"match_{int(time.time())}_{random.randint(1000, 9999)}"
-        seed = random.randint(1, 1000000)
-        
-        await sio.enter_room(host["sid"], room_id)
+        room_id = f"battle_{int(time.time())}"
+        await sio.enter_room(host_sid, room_id)
         await sio.enter_room(sid, room_id)
         
-        active_matches[host["sid"]] = {"room_id": room_id, "opponent_id": sid, "role": "host"}
-        active_matches[sid] = {"room_id": room_id, "opponent_id": host["sid"], "role": "guest"}
+        # In real app, fetch profiles from DB. For now use what client sent.
+        active_battles[room_id] = BattleInstance(room_id, host_sid, sid, profile, profile) # Dummy profiles
         
-        await sio.emit("startGame", {
-            "roomId": room_id,
-            "seed": seed,
-            "isHost": True,
-            "profile": normalized
-        }, room=host["sid"])
-        
-        await sio.emit("startGame", {
-            "roomId": room_id,
-            "seed": seed,
-            "isHost": False,
-            "profile": host["profile"]
-        }, room=sid)
+        await sio.emit("startGame", {"roomId": room_id, "isHost": True, "profile": profile}, room=host_sid)
+        await sio.emit("startGame", {"roomId": room_id, "isHost": False, "profile": profile}, room=sid)
     else:
-        waiting_player = {"sid": sid, "profile": normalized}
+        waiting_player = sid
         await sio.emit("waiting", room=sid)
 
-@sio.event
-async def battle_state(sid, payload):
-    match = active_matches.get(sid)
-    if match and match["role"] == "host":
-        await sio.emit("battle_state", payload, room=match["opponent_id"])
+@fastapi_app.post("/bot/{token}")
+async def telegram_webhook(token: str, request: Request):
+    if dp and token == TELEGRAM_TOKEN:
+        update = types.Update(**await request.json())
+        await dp.feed_update(bot, update)
+    return {"ok": True}
 
-@sio.event
-async def battle_over(sid, payload):
-    match = active_matches.get(sid)
-    if match:
-        await sio.emit("battle_over", payload or {}, room=match["opponent_id"])
-        opp_sid = match["opponent_id"]
-        active_matches.pop(sid, None)
-        active_matches.pop(opp_sid, None)
-
-@sio.event
-async def disconnect(sid):
-    global waiting_player
-    if waiting_player and waiting_player["sid"] == sid:
-        waiting_player = None
-    match = active_matches.pop(sid, None)
-    if match:
-        opp_sid = match["opponent_id"]
-        active_matches.pop(opp_sid, None)
-        await sio.emit("opponent_left", room=opp_sid)
-
-# --- Routes ---
-@fastapi_app.get("/")
-async def get_index():
+@fastapi_app.get("/{path:path}")
+async def static_proxy(path: str):
+    if not path: path = "index.html"
+    if os.path.exists(path): return FileResponse(path)
     return FileResponse("index.html")
-
-@fastapi_app.get("/{page_name}.html")
-async def get_html_page(page_name: str):
-    file_path = f"{page_name}.html"
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    return JSONResponse({"error": "Page not found"}, status_code=404)
-
-@fastapi_app.get("/{full_path:path}")
-async def catch_all(full_path: str):
-    if full_path.startswith("api/"):
-        return JSONResponse({"error": "API route not found"}, status_code=404)
-    if os.path.exists(full_path) and os.path.isfile(full_path):
-        return FileResponse(full_path)
-    return FileResponse("index.html")
-
-@fastapi_app.post("/api/sync-user")
-async def sync_user(request: Request):
-    data = await request.json()
-    telegram_id = data.get("telegram_id")
-    username = data.get("username")
-    char_id = data.get("character_id")
-    
-    db = await get_db_pool()
-    if db and telegram_id:
-        await db.execute(
-            "INSERT INTO players (telegram_id, username) VALUES ($1, $2) ON CONFLICT (telegram_id) DO UPDATE SET username = EXCLUDED.username",
-            str(telegram_id), username
-        )
-        if char_id:
-            # Simple ensure char logic
-            user_id_row = await db.fetchrow("SELECT id FROM players WHERE telegram_id = $1", str(telegram_id))
-            if user_id_row:
-                await db.execute(
-                    "INSERT INTO user_characters (user_id, character_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-                    user_id_row['id'], char_id
-                )
-    
-    return {"ok": True, "username": username, "charId": char_id}
 
 if __name__ == "__main__":
     import uvicorn

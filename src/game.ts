@@ -486,73 +486,39 @@ window.addEventListener("beforeunload", () => {
 });
 
 function update(): void {
-  if (isWaiting || !hasStarted) return; // wait for match to start
+  if (isWaiting || !hasStarted) return;
   gameTime++;
   
-  const originalMathRandom = Math.random;
-  Math.random = pseudoRandom; // sync rng
-  
-  if (!gameOver) {
-    if (isOnline && localRole === "guest") {
-      // Guest doesn't run AI anymore. It just interpolates to host state.
-      if (pendingRemoteState) {
-        // Position interpolation
-        p1.x += (pendingRemoteState.guest.x - p1.x) * 0.45;
-        p1.y = pendingRemoteState.guest.y;
-        p2.x += (pendingRemoteState.host.x - p2.x) * 0.45;
-        p2.y = pendingRemoteState.host.y;
+  if (!gameOver && pendingRemoteState) {
+    // Both players are now "GUESTS" of the server authority.
+    // Map host/guest from server to local fighters
+    const serverHost = pendingRemoteState.host;
+    const serverGuest = pendingRemoteState.guest;
 
-        // Force exactly identical state
-        p1.hp = pendingRemoteState.guest.hp;
-        p2.hp = pendingRemoteState.host.hp;
-        p1.fighterState = pendingRemoteState.guest.fighterState;
-        p2.fighterState = pendingRemoteState.host.fighterState;
-        p1.hitTimer = pendingRemoteState.guest.hitTimer;
-        p2.hitTimer = pendingRemoteState.host.hitTimer;
-        
-        syncHpBars();
-        
-        if (pendingRemoteState.gameOver) {
-          gameOver = true;
-          handleBattleOutcome();
-        }
-      }
-    } else {
-      // Host or Offline: run full AI simulation
-      p1.updateAI(gameOver);
-      p2.updateAI(gameOver);
+    // Use the role to determine which server character is YOU (p1)
+    const myState = localRole === "host" ? serverHost : serverGuest;
+    const oppState = localRole === "host" ? serverGuest : serverHost;
 
-      if (p1.hp <= 0 || p2.hp <= 0) {
-        gameOver = true;
-        handleBattleOutcome();
+    // Smooth interpolation to server positions
+    p1.x += (myState.x - p1.x) * 0.5;
+    p2.x += (oppState.x - p2.x) * 0.5;
+    
+    p1.hp = myState.hp;
+    p2.hp = oppState.hp;
+    p1.fighterState = myState.fighterState;
+    p2.fighterState = oppState.fighterState;
+    p1.hitTimer = myState.hitTimer;
+    p2.hitTimer = oppState.hitTimer;
 
-        if (isOnline && localRole === "host" && socket && activeRoomId) {
-          socket.emit("battle_over", {
-            roomId: activeRoomId,
-            outcome: resolveHostOutcome(),
-          });
-        }
-      }
-
-      if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
-        const now = Date.now();
-        if (now - lastStateSentAt >= 45) { // ~22 updates per second
-          socket.emit("battle_state", {
-            roomId: activeRoomId,
-            state: {
-              tick: gameTime,
-              gameOver,
-              host: serializeFighterState(p1),
-              guest: serializeFighterState(p2),
-            },
-          });
-          lastStateSentAt = now;
-        }
-      }
+    syncHpBars();
+    
+    if (pendingRemoteState.gameOver) {
+      gameOver = true;
+      handleBattleOutcome();
     }
   }
 
-  // Local particles/damage text update
+  // Local-only visual updates
   for (let i = particles.length - 1; i >= 0; i--) {
     particles[i].update();
     if (particles[i].life <= 0) particles.splice(i, 1);
@@ -561,8 +527,6 @@ function update(): void {
     damageTexts[i].update();
     if (damageTexts[i].life <= 0) damageTexts.splice(i, 1);
   }
-  
-  Math.random = originalMathRandom; // restore rng
 }
 
 function draw(): void {
