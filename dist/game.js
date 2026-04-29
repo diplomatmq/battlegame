@@ -373,8 +373,11 @@ function update() {
             const myState = localRole === "host" ? serverHost : serverGuest;
             const oppState = localRole === "host" ? serverGuest : serverHost;
             // Smooth interpolation to server positions
-            p1.x += (myState.x - p1.x) * 0.5;
-            p2.x += (oppState.x - p2.x) * 0.5;
+            p1.x += (myState.x - p1.x) * 0.3; // Slower interp for smoother movement
+            p2.x += (oppState.x - p2.x) * 0.3;
+            // Server says we're at 480 floor usually
+            p1.y = myState.y;
+            p2.y = oppState.y;
             // Detect damage for visual effects
             if (myState.hp < p1.hp) {
                 const dmg = p1.hp - myState.hp;

@@ -64,10 +64,20 @@ class ServerFighter:
             self.spd *= 1.4
 
     def serialize(self):
+        # Client expects: "idle", "moving", "attacking", "death", "victory"
+        # Map server state to client state
+        client_state = self.state
+        if self.hp <= 0:
+            client_state = "death"
+            
         return {
-            "x": self.x, "y": self.y, "hp": self.hp,
-            "fighterState": self.state, "hitTimer": self.hit_timer,
-            "charType": self.char_type
+            "x": self.x,
+            "y": self.y,
+            "hp": self.hp,
+            "fighterState": client_state,
+            "hitTimer": self.hit_timer,
+            "charType": self.char_type,
+            "color": "#fff" # Default color, client will override if needed
         }
 
 class BattleInstance:
@@ -83,14 +93,14 @@ class BattleInstance:
     def update(self):
         if self.game_over: return
         
-        # Calculate distance
-        dist = abs(self.f1.x - self.f2.x)
-        
         fighters = [self.f1, self.f2]
-        random.shuffle(fighters) # Randomize update order to prevent host advantage
+        # random.shuffle(fighters) # Randomize update order to prevent host advantage
 
         for f in fighters:
+            if f.hp <= 0: continue
+            
             opp = self.f2 if f == self.f1 else self.f1
+            dist = abs(f.x - opp.x)
             
             if f.hit_timer > 0: f.hit_timer -= 1
             if f.state_timer > 0: f.state_timer -= 1
@@ -107,10 +117,10 @@ class BattleInstance:
             elif f.state == "moving":
                 # Move towards opponent
                 direction = 1 if opp.x > f.x else -1
-                target_x = opp.x - (f.range * 0.8 * direction)
+                target_x = opp.x - (f.range * 0.7 * direction)
                 
                 # Move speed based on spd stat
-                move_step = 4 * f.spd
+                move_step = 6 * f.spd # Slightly faster
                 if abs(f.x - target_x) < move_step:
                     f.x = target_x
                 else:
@@ -118,14 +128,14 @@ class BattleInstance:
                 
                 if dist < f.range:
                     f.state = "attacking"
-                    f.state_timer = 20
-                    f.attack_cd = max(25, 70 - (f.spd * 6))
+                    f.state_timer = 25 # Animation duration
+                    f.attack_cd = max(30, 85 - (f.spd * 6))
                     
                     # Deal damage (Server Authority)
-                    base_dmg = 60 * f.atk
-                    if f.char_type == "scarlet_assassin": base_dmg *= 0.8 # faster but weaker
+                    base_dmg = 45 * f.atk # Reduced base damage to avoid instant death
+                    if f.char_type == "scarlet_assassin": base_dmg *= 0.7 
                     
-                    reduction = opp.def_ * 5
+                    reduction = (opp.def_ - 1) * 3
                     final_dmg = max(10, base_dmg - reduction)
                     
                     opp.hp -= final_dmg
