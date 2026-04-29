@@ -270,12 +270,14 @@ function handleBattleOutcome(): void {
   if (outcomeHandled) return;
   outcomeHandled = true;
 
+  // Ensure HP is set to 0 for the loser to avoid UI confusion
   const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
   const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
 
   if (hostWins) {
     p1.fighterState = "victory";
     p2.fighterState = "death";
+    p2.hp = 0; // Force zero HP visually
     if (localRole === "host") {
       addXP(50);
       recordFightWon();
@@ -283,6 +285,7 @@ function handleBattleOutcome(): void {
   } else if (guestWins) {
     p1.fighterState = "death";
     p2.fighterState = "victory";
+    p1.hp = 0; // Force zero HP visually
     if (localRole === "guest") {
       addXP(50);
       recordFightWon();
@@ -290,8 +293,11 @@ function handleBattleOutcome(): void {
   } else {
     p1.fighterState = "death";
     p2.fighterState = "death";
+    p1.hp = 0;
+    p2.hp = 0;
   }
 
+  syncHpBars();
   setBattleStatus("МАТЧ ЗАВЕРШЕН");
 }
 
@@ -446,7 +452,7 @@ function setupOnlineSocket(): void {
   });
 
   socket.on("battle_over", (payload: { outcome: MatchOutcome }) => {
-    if (gameOver) return;
+    if (gameOver && outcomeHandled) return;
     forcedOutcome = payload.outcome;
     gameOver = true;
     handleBattleOutcome();
@@ -497,6 +503,12 @@ function update(): void {
     
     if (p1.hp <= 0 || p2.hp <= 0) {
       gameOver = true;
+      
+      // Force sync outcome data so handleBattleOutcome knows who won
+      if (p1.hp <= 0 && p2.hp <= 0) forcedOutcome = "draw";
+      else if (p1.hp <= 0) forcedOutcome = localRole === "host" ? "guest" : "host";
+      else if (p2.hp <= 0) forcedOutcome = localRole === "host" ? "host" : "guest";
+      
       handleBattleOutcome();
       
       // If online, host reports the final outcome to the server
