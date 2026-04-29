@@ -452,7 +452,8 @@ function setupOnlineSocket(): void {
   });
 
   socket.on("battle_over", (payload: { outcome: MatchOutcome }) => {
-    if (gameOver && outcomeHandled) return;
+    console.log("Server reports battle over:", payload.outcome);
+    if (outcomeHandled) return;
     forcedOutcome = payload.outcome;
     gameOver = true;
     handleBattleOutcome();
@@ -502,6 +503,7 @@ function update(): void {
     p2.updateAI(gameOver);
     
     if (p1.hp <= 0 || p2.hp <= 0) {
+      if (gameOver) return; // Prevent double call
       gameOver = true;
       
       // Force sync outcome data so handleBattleOutcome knows who won
@@ -509,6 +511,7 @@ function update(): void {
       else if (p1.hp <= 0) forcedOutcome = localRole === "host" ? "guest" : "host";
       else if (p2.hp <= 0) forcedOutcome = localRole === "host" ? "host" : "guest";
       
+      console.log("Battle finished locally. Outcome:", forcedOutcome);
       handleBattleOutcome();
       
       // If online, host reports the final outcome to the server
@@ -594,35 +597,53 @@ function draw(): void {
 }
 
 function drawGameOver(): void {
-  ctx.fillStyle = "rgba(0,0,0,0.82)";
+  // Clear any existing dark overlays if they somehow exist
+  ctx.fillStyle = "rgba(0,0,0,0.85)";
   ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
 
   const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
   const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
 
-  let winnerText = "\u041e\u0411\u041e\u042e\u0414\u041d\u041e\u0415";
+  let winnerText = "ОБОЮДНОЕ";
   let winnerColor = "#fff";
 
   if (hostWins) {
-    winnerText = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
+    winnerText = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " ПОБЕДИЛ";
     winnerColor = p1.color;
   } else if (guestWins) {
-    winnerText = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
+    winnerText = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " ПОБЕДИЛ";
     winnerColor = p2.color;
   }
 
+  // Draw Glow
+  ctx.shadowBlur = 40;
+  ctx.shadowColor = winnerColor;
+  
   ctx.textAlign  = "center";
-  ctx.font       = "bold 26px \"Press Start 2P\"";
-  ctx.shadowBlur = 30; ctx.shadowColor = winnerColor; ctx.fillStyle = "#fff";
-  ctx.fillText(winnerText, ARENA_WIDTH / 2, ARENA_HEIGHT / 2);
-
+  ctx.fillStyle = "#fff";
+  
+  // Winner Text
+  ctx.font = "bold 32px 'Orbitron', sans-serif";
+  ctx.fillText(winnerText, ARENA_WIDTH / 2, ARENA_HEIGHT / 2 - 20);
+  
   ctx.shadowBlur = 0;
-  ctx.font       = "10px \"Press Start 2P\"";
-  ctx.fillStyle  = "#6b4810";
-  ctx.fillText("\u041d\u0410\u0416\u041c\u0418 \u041a\u041d\u041e\u041f\u041a\u0423 \u041d\u0418\u0416\u0415", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 56);
+  
+  // Subtext
+  ctx.font = "14px 'Inter', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillText("БОЙ ЗАВЕРШЕН", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 30);
 
+  // Make sure the button is visible
   const btn = document.getElementById("backBtn") as HTMLElement | null;
-  if (btn) btn.style.display = "block";
+  if (btn) {
+    btn.style.display = "block";
+    btn.style.opacity = "1";
+    btn.style.visibility = "visible";
+    // Force a small delay to ensure DOM update
+    setTimeout(() => {
+        if (btn) btn.style.display = "block";
+    }, 100);
+  }
 }
 
 function loop(): void { update(); draw(); }
