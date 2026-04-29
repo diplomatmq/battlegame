@@ -25,7 +25,8 @@ WEB_APP_BASE_URL = os.getenv("WEB_APP_BASE_URL", WEBHOOK_URL)
 
 # --- FastAPI & Socket.io setup ---
 fastapi_app = FastAPI()
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*', logger=True, engineio_logger=True)
+# Railway and Railpack look for 'app' by default
 app = socketio.ASGIApp(sio, fastapi_app)
 
 # --- Telegram Bot setup (aiogram) ---
