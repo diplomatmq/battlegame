@@ -592,9 +592,13 @@ function draw(): void {
 }
 
 function drawGameOver(): void {
-  // Semi-transparent background
+  // Clear the whole canvas first to ensure we can draw over everything
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform to screen space
+  
+  // 1. Draw the dark overlay covering the ENTIRE canvas
   ctx.fillStyle = "rgba(0,0,0,0.85)";
-  ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
   const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
@@ -610,32 +614,27 @@ function drawGameOver(): void {
     winnerColor = p2.color;
   }
 
-  ctx.save();
-  ctx.textAlign  = "center";
+  ctx.textAlign = "center";
   
-  // Winner Text with Glow
+  // 2. Draw Winner Text
   ctx.shadowBlur = 30;
   ctx.shadowColor = winnerColor;
   ctx.fillStyle = "#fff";
-  ctx.font = "bold 40px sans-serif"; // Use system fonts for reliability
-  ctx.fillText(winnerName.toUpperCase(), ARENA_WIDTH / 2, ARENA_HEIGHT / 2 - 40);
+  ctx.font = "bold 44px sans-serif";
+  ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 40);
   
-  // "WINS" text
+  // 3. Draw "WINS" text
   ctx.shadowBlur = 0;
-  ctx.font = "bold 20px sans-serif";
+  ctx.font = "bold 22px sans-serif";
   ctx.fillStyle = winnerColor;
-  ctx.fillText("ПОБЕДИТЕЛЬ", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 10);
+  ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 + 10);
 
   ctx.restore();
 
-  // Show the back button
+  // 4. Force the button to show up in the DOM
   const btn = document.getElementById("backBtn");
   if (btn) {
-    btn.style.setProperty("display", "block", "important");
-    btn.style.setProperty("opacity", "1", "important");
-    btn.style.setProperty("visibility", "visible", "important");
-    btn.style.setProperty("z-index", "9999", "important");
-    btn.style.setProperty("position", "relative", "important");
+    btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 9999 !important; position: absolute !important; pointer-events: auto !important;";
   }
 }
 
