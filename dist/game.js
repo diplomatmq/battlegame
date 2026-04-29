@@ -363,47 +363,58 @@ function update() {
     if (isWaiting || !hasStarted)
         return; // wait for match to start
     gameTime++;
-    Math.random = pseudoRandom; // sync rng
-    if (!gameOver) {
-        if (isOnline && localRole === "guest") {
-            if (pendingRemoteState) {
-                // Host sends host/guest slots; map them into the local view where p1 is always "you".
-                applySyncedFighterState(p2, pendingRemoteState.host);
-                applySyncedFighterState(p1, pendingRemoteState.guest);
-                syncHpBars();
-                if (pendingRemoteState.gameOver) {
-                    gameOver = true;
-                    handleBattleOutcome();
-                }
+    if (isOnline) {
+        if (!gameOver && pendingRemoteState) {
+            // Both players are now "GUESTS" of the server authority.
+            // Map host/guest from server to local fighters
+            const serverHost = pendingRemoteState.host;
+            const serverGuest = pendingRemoteState.guest;
+            // Use the role to determine which server character is YOU (p1)
+            const myState = localRole === "host" ? serverHost : serverGuest;
+            const oppState = localRole === "host" ? serverGuest : serverHost;
+            // Smooth interpolation to server positions
+            p1.x += (myState.x - p1.x) * 0.5;
+            p2.x += (oppState.x - p2.x) * 0.5;
+            // Detect damage for visual effects
+            if (myState.hp < p1.hp) {
+                const dmg = p1.hp - myState.hp;
+                p1.hitTimer = 15;
+                state.screenShake = 12;
+                damageTexts.push(new DamageText(p1.x, p1.y - p1.height, dmg, "#fff"));
+                for (let i = 0; i < 25; i++)
+                    particles.push(new Particle(p1.x, p1.y - p1.height / 2, p2.color, 1.6));
+            }
+            if (oppState.hp < p2.hp) {
+                const dmg = p2.hp - oppState.hp;
+                p2.hitTimer = 15;
+                state.screenShake = 12;
+                damageTexts.push(new DamageText(p2.x, p2.y - p2.height, dmg, "#fff"));
+                for (let i = 0; i < 25; i++)
+                    particles.push(new Particle(p2.x, p2.y - p2.height / 2, p1.color, 1.6));
+            }
+            p1.hp = myState.hp;
+            p2.hp = oppState.hp;
+            p1.fighterState = myState.fighterState;
+            p2.fighterState = oppState.fighterState;
+            p1.hitTimer = myState.hitTimer;
+            p2.hitTimer = oppState.hitTimer;
+            p1.isFacingRight = p2.x > p1.x;
+            p2.isFacingRight = p1.x > p2.x;
+            syncHpBars();
+            if (pendingRemoteState.gameOver) {
+                gameOver = true;
+                handleBattleOutcome();
             }
         }
-        else {
+    }
+    else {
+        // Offline mode: run local AI
+        if (!gameOver) {
             p1.updateAI(gameOver);
             p2.updateAI(gameOver);
             if (p1.hp <= 0 || p2.hp <= 0) {
                 gameOver = true;
                 handleBattleOutcome();
-                if (isOnline && localRole === "host" && socket && activeRoomId) {
-                    socket.emit("battle_over", {
-                        roomId: activeRoomId,
-                        outcome: resolveHostOutcome(),
-                    });
-                }
-            }
-            if (isOnline && localRole === "host" && socket && activeRoomId && socket.connected) {
-                const now = Date.now();
-                if (now - lastStateSentAt >= 80) {
-                    socket.emit("battle_state", {
-                        roomId: activeRoomId,
-                        state: {
-                            tick: gameTime,
-                            gameOver,
-                            host: serializeFighterState(p1),
-                            guest: serializeFighterState(p2),
-                        },
-                    });
-                    lastStateSentAt = now;
-                }
             }
         }
     }
@@ -417,7 +428,6 @@ function update() {
         if (damageTexts[i].life <= 0)
             damageTexts.splice(i, 1);
     }
-    Math.random = originalMathRandom; // restore rng
 }
 function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -466,14 +476,18 @@ function draw() {
 function drawGameOver() {
     ctx.fillStyle = "rgba(0,0,0,0.82)";
     ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-    const p1Win = p1.hp > 0 && p2.hp <= 0;
-    const p2Win = p2.hp > 0 && p1.hp <= 0;
-    const winnerText = p1Win
-        ? savedNick.toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b"
-        : p2Win
-            ? enemy.name + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b"
-            : "\u041e\u0411\u041e\u042e\u0414\u041d\u041e\u0415";
-    const winnerColor = p1Win ? p1.color : p2.color;
+    const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
+    const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+    let winnerText = "\u041e\u0411\u041e\u042e\u0414\u041d\u041e\u0415";
+    let winnerColor = "#fff";
+    if (hostWins) {
+        winnerText = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
+        winnerColor = p1.color;
+    }
+    else if (guestWins) {
+        winnerText = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
+        winnerColor = p2.color;
+    }
     ctx.textAlign = "center";
     ctx.font = "bold 26px \"Press Start 2P\"";
     ctx.shadowBlur = 30;

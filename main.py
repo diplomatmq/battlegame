@@ -54,6 +54,14 @@ class ServerFighter:
         self.state_timer = 0
         self.attack_cd = 0
         self.hit_timer = 0
+        
+        # Class-specific config
+        self.range = 80
+        if self.char_type in ["mage", "jade_mage", "necromancer"]:
+            self.range = 250
+        elif self.char_type == "scarlet_assassin":
+            self.range = 60
+            self.spd *= 1.4
 
     def serialize(self):
         return {
@@ -75,10 +83,15 @@ class BattleInstance:
     def update(self):
         if self.game_over: return
         
-        # Simple movement/attack logic (simplified port of TS logic)
+        # Calculate distance
         dist = abs(self.f1.x - self.f2.x)
         
-        for f, opp in [(self.f1, self.f2), (self.f2, self.f1)]:
+        fighters = [self.f1, self.f2]
+        random.shuffle(fighters) # Randomize update order to prevent host advantage
+
+        for f in fighters:
+            opp = self.f2 if f == self.f1 else self.f1
+            
             if f.hit_timer > 0: f.hit_timer -= 1
             if f.state_timer > 0: f.state_timer -= 1
             if f.attack_cd > 0: f.attack_cd -= 1
@@ -87,26 +100,49 @@ class BattleInstance:
                 if f.attack_cd <= 0:
                     f.state = "moving"
                 else:
-                    f.x += (200 if f.side == 'host' else 700 - f.x) * 0.05
+                    # Drift around starting position
+                    target_idle = 200 if f.side == 'host' else 700
+                    f.x += (target_idle - f.x) * 0.05
             
-            if f.state == "moving":
-                target_x = opp.x - 60 if f.x < opp.x else opp.x + 60
-                f.x += (target_x - f.x) * 0.1
-                if dist < 80:
+            elif f.state == "moving":
+                # Move towards opponent
+                direction = 1 if opp.x > f.x else -1
+                target_x = opp.x - (f.range * 0.8 * direction)
+                
+                # Move speed based on spd stat
+                move_step = 4 * f.spd
+                if abs(f.x - target_x) < move_step:
+                    f.x = target_x
+                else:
+                    f.x += direction * move_step
+                
+                if dist < f.range:
                     f.state = "attacking"
-                    f.state_timer = 15
-                    f.attack_cd = 60
-                    # Deal damage
-                    dmg = max(5, (f.atk * 40) - (opp.def_ * 5))
-                    opp.hp -= dmg
-                    opp.hit_timer = 10
+                    f.state_timer = 20
+                    f.attack_cd = max(25, 70 - (f.spd * 6))
+                    
+                    # Deal damage (Server Authority)
+                    base_dmg = 60 * f.atk
+                    if f.char_type == "scarlet_assassin": base_dmg *= 0.8 # faster but weaker
+                    
+                    reduction = opp.def_ * 5
+                    final_dmg = max(10, base_dmg - reduction)
+                    
+                    opp.hp -= final_dmg
+                    opp.hit_timer = 15
+                    logger.info(f"Battle {self.room_id}: {f.side} hit {opp.side} for {final_dmg}. HP left: {opp.hp}")
             
-            if f.state == "attacking" and f.state_timer <= 0:
-                f.state = "idle"
+            elif f.state == "attacking":
+                if f.state_timer <= 0:
+                    f.state = "idle"
 
         if self.f1.hp <= 0 or self.f2.hp <= 0:
             self.game_over = True
-            self.winner = "host" if self.f2.hp <= 0 else "guest"
+            if self.f1.hp <= 0 and self.f2.hp <= 0:
+                self.winner = "draw"
+            else:
+                self.winner = "host" if self.f2.hp <= 0 else "guest"
+            logger.info(f"Battle {self.room_id} over. Winner: {self.winner}")
 
     def get_state(self):
         return {
@@ -145,24 +181,25 @@ async def startup_event():
         await bot.set_webhook(f"{WEBHOOK_URL.rstrip('/')}/bot/{TELEGRAM_TOKEN}")
 
 # --- Rest of handlers (Play, Connect, Sync) ---
-waiting_player = None
+waiting_player = None # Store as (sid, profile)
 @sio.event
 async def play(sid, profile):
     global waiting_player
-    if waiting_player and waiting_player != sid:
-        host_sid = waiting_player
+    if waiting_player and waiting_player[0] != sid:
+        host_sid, host_profile = waiting_player
         waiting_player = None
         room_id = f"battle_{int(time.time())}"
         await sio.enter_room(host_sid, room_id)
         await sio.enter_room(sid, room_id)
         
         # In real app, fetch profiles from DB. For now use what client sent.
-        active_battles[room_id] = BattleInstance(room_id, host_sid, sid, profile, profile) # Dummy profiles
+        active_battles[room_id] = BattleInstance(room_id, host_sid, sid, host_profile, profile)
         
+        # Send opponent's profile to each player
         await sio.emit("startGame", {"roomId": room_id, "isHost": True, "profile": profile}, room=host_sid)
-        await sio.emit("startGame", {"roomId": room_id, "isHost": False, "profile": profile}, room=sid)
+        await sio.emit("startGame", {"roomId": room_id, "isHost": False, "profile": host_profile}, room=sid)
     else:
-        waiting_player = sid
+        waiting_player = (sid, profile)
         await sio.emit("waiting", room=sid)
 
 @fastapi_app.post("/bot/{token}")
