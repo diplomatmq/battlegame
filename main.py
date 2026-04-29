@@ -10,15 +10,16 @@ import socketio
 from pydantic import BaseModel
 
 # FastAPI setup
-app = FastAPI()
+fastapi_app = FastAPI()
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
-socket_app = socketio.ASGIApp(sio, app)
+# Railway and Railpack look for 'app' by default
+app = socketio.ASGIApp(sio, fastapi_app)
 
-# Static files
-app.mount("/static", StaticFiles(directory="."), name="static")
+# Static files - serving the compiled JS and assets
+if os.path.exists("dist"):
+    fastapi_app.mount("/dist", StaticFiles(directory="dist"), name="dist")
 
 # Mock DB or real DB connection (psycopg2/asyncpg would be needed for Postgres)
-# For now, keeping it simple as a proof of concept
 class PlayerProfile(BaseModel):
     name: str = "Игрок"
     avatar: Optional[str] = None
@@ -51,11 +52,9 @@ async def play(sid, profile):
     global waiting_player
     normalized = normalize_profile(profile)
     
-    # Clear from queue if already there
     if waiting_player and waiting_player["sid"] == sid:
         waiting_player = None
         
-    # Clear from active matches
     if sid in active_matches:
         match = active_matches.pop(sid, None)
         if match:
@@ -123,17 +122,35 @@ async def disconnect(sid):
         await sio.emit("opponent_left", room=opp_sid)
     print(f"Disconnected: {sid}")
 
-@app.get("/")
+# Routes for all game pages
+@fastapi_app.get("/")
 async def get_index():
     return FileResponse("index.html")
 
-# Mock Telegram API and other endpoints from Node server
-@app.post("/api/sync-user")
+@fastapi_app.get("/{page_name}.html")
+async def get_html_page(page_name: str):
+    file_path = f"{page_name}.html"
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return JSONResponse({"error": "Page not found"}, status_code=404)
+
+# Fallback to serve index.html for any other route (SPA-like)
+@fastapi_app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    # Don't catch api calls
+    if full_path.startswith("api/"):
+        return JSONResponse({"error": "API route not found"}, status_code=404)
+    # Check if it's a file that exists (like manifest.json, etc)
+    if os.path.exists(full_path) and os.path.isfile(full_path):
+        return FileResponse(full_path)
+    return FileResponse("index.html")
+
+@fastapi_app.post("/api/sync-user")
 async def sync_user(request: Request):
     data = await request.json()
-    # In a real app, save to Postgres here
     return {"ok": True, "username": data.get("username", "player"), "charId": data.get("character_id")}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(socket_app, host="0.0.0.0", port=8000)
+    # Local development use
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)
