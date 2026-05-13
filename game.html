@@ -109,27 +109,33 @@
 
         #backBtn {
             display: none;
-            position: absolute;
-            bottom: 40px; left: 50%; transform: translateX(-50%);
-            z-index: 20;
-            background: linear-gradient(135deg, rgba(0,229,255,0.15), rgba(186,85,255,0.15));
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(0,229,255,0.3);
-            border-radius: 14px;
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
             color: #fff;
             font-family: 'Orbitron', sans-serif;
-            font-size: 11px;
+            font-size: 16px;
             font-weight: 700;
-            padding: 12px 28px;
+            padding: 15px 40px;
             cursor: pointer;
-            letter-spacing: 3px;
-            box-shadow: 0 0 20px rgba(0,229,255,0.1);
+            letter-spacing: 2px;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
             transition: all 0.3s;
+            pointer-events: auto;
+            -webkit-tap-highlight-color: transparent;
         }
         #backBtn:hover {
-            background: linear-gradient(135deg, rgba(0,229,255,0.25), rgba(186,85,255,0.25));
-            box-shadow: 0 0 40px rgba(0,229,255,0.2);
+            background: linear-gradient(135deg, #7c8ef5 0%, #8a5bb5 100%);
+            box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
+            transform: translateX(-50%) translateY(-2px);
+        }
+        #backBtn:active {
+            transform: translateX(-50%) translateY(0);
         }
 
         @media (max-width: 780px) {

@@ -288,6 +288,8 @@ function handleBattleOutcome(): void {
   
   gameOver = true;
 
+  console.log("Battle outcome handled, showing back button...");
+
   // Disconnect from socket to prevent further updates
   if (socket && isOnline) {
     setTimeout(() => {
@@ -295,34 +297,65 @@ function handleBattleOutcome(): void {
     }, 1000);
   }
 
-  // Show back button after a short delay to ensure game over screen is visible
-  setTimeout(() => {
-    showBackButton();
-  }, 500);
-}
+  // Show back button immediately and repeatedly to ensure it appears
+  const showBtn = () => {
+    console.log("Attempting to show back button...");
+    
+    // --- TELEGRAM MAIN BUTTON INTEGRATION ---
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.MainButton.text = "ВЕРНУТЬСЯ В МЕНЮ";
+      tg.MainButton.color = "#4CAF50";
+      tg.MainButton.textColor = "#FFFFFF";
+      tg.MainButton.show();
+      tg.MainButton.onClick(() => {
+        window.location.href = 'menu.html';
+      });
+      console.log("Telegram MainButton shown");
+    }
 
-function showBackButton(): void {
-  // --- TELEGRAM MAIN BUTTON INTEGRATION ---
-  if (window.Telegram && window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-    tg.MainButton.text = "ВЕРНУТЬСЯ В МЕНЮ";
-    tg.MainButton.color = "#4CAF50";
-    tg.MainButton.textColor = "#FFFFFF";
-    tg.MainButton.show();
-    tg.MainButton.onClick(() => {
-      window.location.href = 'menu.html';
-    });
-  }
+    // HTML button as backup - FORCE IT TO SHOW
+    const btn = document.getElementById("backBtn");
+    console.log("Back button element:", btn);
+    if (btn) {
+      btn.style.display = "block";
+      btn.style.opacity = "1";
+      btn.style.visibility = "visible";
+      btn.style.zIndex = "10000";
+      btn.style.position = "fixed";
+      btn.style.bottom = "60px";
+      btn.style.left = "50%";
+      btn.style.transform = "translateX(-50%)";
+      btn.style.padding = "15px 40px";
+      btn.style.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+      btn.style.color = "white";
+      btn.style.border = "none";
+      btn.style.borderRadius = "12px";
+      btn.style.fontSize = "18px";
+      btn.style.fontWeight = "bold";
+      btn.style.cursor = "pointer";
+      btn.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
+      btn.style.pointerEvents = "auto";
+      btn.textContent = "ВЕРНУТЬСЯ В МЕНЮ";
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("Back button clicked!");
+        window.location.href = 'menu.html';
+      };
+      console.log("Back button styled and visible");
+    } else {
+      console.error("Back button element not found!");
+    }
+  };
 
-  // HTML button as backup
-  const btn = document.getElementById("backBtn");
-  if (btn) {
-    btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 10000 !important; position: fixed !important; bottom: 20px !important; left: 50% !important; transform: translateX(-50%) !important; padding: 15px 40px !important; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; color: white !important; border: none !important; border-radius: 12px !important; font-size: 18px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; pointer-events: auto !important;";
-    btn.textContent = "ВЕРНУТЬСЯ В МЕНЮ";
-    btn.onclick = () => {
-      window.location.href = 'menu.html';
-    };
-  }
+  // Show immediately
+  showBtn();
+  
+  // And retry a few times to be absolutely sure
+  setTimeout(showBtn, 100);
+  setTimeout(showBtn, 500);
+  setTimeout(showBtn, 1000);
 }
 
 function startOfflineBattle(): void {
@@ -635,13 +668,18 @@ function draw(): void {
     ctx.shadowColor = winnerColor;
     ctx.fillStyle = "#fff";
     ctx.font = "bold 48px Arial, sans-serif";
-    ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 50);
+    ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 80);
     
     // 3. Draw "ПОБЕДИТЕЛЬ" text
     ctx.shadowBlur = 0;
     ctx.font = "bold 28px Arial, sans-serif";
     ctx.fillStyle = winnerColor;
-    ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 + 10);
+    ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 - 20);
+
+    // 4. Draw "Click to return" hint
+    ctx.font = "20px Arial, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fillText("Нажмите кнопку ниже для возврата в меню", canvas.width / 2, canvas.height / 2 + 60);
 
     // Continue animation loop to keep overlay visible
     requestAnimationFrame(loop);

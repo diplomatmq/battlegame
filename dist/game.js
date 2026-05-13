@@ -189,21 +189,97 @@ function handleBattleOutcome() {
     if (outcomeHandled)
         return;
     outcomeHandled = true;
-    if (p1.hp > 0 && p2.hp <= 0) {
+    const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
+    const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+    if (hostWins) {
         p1.fighterState = "victory";
         p2.fighterState = "death";
-        addXP(50);
-        recordFightWon();
+        p2.hp = 0;
+        if (localRole === "host") {
+            addXP(50);
+            recordFightWon();
+        }
     }
-    else if (p2.hp > 0 && p1.hp <= 0) {
+    else if (guestWins) {
         p1.fighterState = "death";
         p2.fighterState = "victory";
+        p1.hp = 0;
+        if (localRole === "guest") {
+            addXP(50);
+            recordFightWon();
+        }
     }
     else {
         p1.fighterState = "death";
         p2.fighterState = "death";
+        p1.hp = 0;
+        p2.hp = 0;
     }
-    setBattleStatus("МАТЧ ЗАВЕРШЕН");
+    syncHpBars();
+    setBattleStatus("БОЙ ЗАВЕРШЕН");
+    gameOver = true;
+    console.log("Battle outcome handled, showing back button...");
+    // Disconnect from socket
+    if (socket && isOnline) {
+        setTimeout(() => {
+            if (socket)
+                socket.disconnect();
+        }, 1000);
+    }
+    // Show back button with retries
+    const showBtn = () => {
+        console.log("Attempting to show back button...");
+        // Telegram MainButton
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.MainButton.text = "ВЕРНУТЬСЯ В МЕНЮ";
+            tg.MainButton.color = "#4CAF50";
+            tg.MainButton.textColor = "#FFFFFF";
+            tg.MainButton.show();
+            tg.MainButton.onClick(() => {
+                window.location.href = 'menu.html';
+            });
+            console.log("Telegram MainButton shown");
+        }
+        // HTML button
+        const btn = document.getElementById("backBtn");
+        console.log("Back button element:", btn);
+        if (btn) {
+            btn.style.display = "block";
+            btn.style.opacity = "1";
+            btn.style.visibility = "visible";
+            btn.style.zIndex = "10000";
+            btn.style.position = "fixed";
+            btn.style.bottom = "60px";
+            btn.style.left = "50%";
+            btn.style.transform = "translateX(-50%)";
+            btn.style.padding = "15px 40px";
+            btn.style.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+            btn.style.color = "white";
+            btn.style.border = "none";
+            btn.style.borderRadius = "12px";
+            btn.style.fontSize = "18px";
+            btn.style.fontWeight = "bold";
+            btn.style.cursor = "pointer";
+            btn.style.boxShadow = "0 4px 15px rgba(0,0,0,0.5)";
+            btn.style.pointerEvents = "auto";
+            btn.textContent = "ВЕРНУТЬСЯ В МЕНЮ";
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("Back button clicked!");
+                window.location.href = 'menu.html';
+            };
+            console.log("Back button styled and visible");
+        }
+        else {
+            console.error("Back button element not found!");
+        }
+    };
+    showBtn();
+    setTimeout(showBtn, 100);
+    setTimeout(showBtn, 500);
+    setTimeout(showBtn, 1000);
 }
 function startOfflineBattle() {
     isOnline = false;
@@ -370,22 +446,60 @@ function update() {
     if (!gameOver) {
         p1.updateAI(gameOver);
         p2.updateAI(gameOver);
-        if (p1.hp <= 0 || p2.hp <= 0) {
-            gameOver = true;
-            handleBattleOutcome();
-            // If online, host reports the final outcome to the server
-            if (isOnline && localRole === "host" && socket && activeRoomId) {
-                socket.emit("battle_over", {
-                    roomId: activeRoomId,
-                    outcome: resolveHostOutcome()
-                });
+        // HOST: Send state to server every 3 frames for synchronization
+        if (isOnline && localRole === "host" && socket && activeRoomId && gameTime % 3 === 0) {
+            const state = {
+                tick: gameTime,
+                gameOver: false,
+                host: serializeFighterState(p1),
+                guest: serializeFighterState(p2),
+            };
+            socket.emit("battle_state", { roomId: activeRoomId, state });
+            lastStateSentAt = gameTime;
+        }
+        // GUEST: Apply received state from host to stay in sync
+        if (isOnline && localRole === "guest" && pendingRemoteState) {
+            const remoteState = pendingRemoteState;
+            pendingRemoteState = null;
+            // Apply host's authoritative state
+            applySyncedFighterState(p1, remoteState.host);
+            applySyncedFighterState(p2, remoteState.guest);
+            syncHpBars();
+            // Check if host says game is over
+            if (remoteState.gameOver && !gameOver) {
+                gameOver = true;
+                handleBattleOutcome();
             }
         }
-        // Optional: Synchronize with server heartbeats if they exist
-        if (isOnline && pendingRemoteState) {
-            // We can use server state to "correct" small drifts, 
-            // but for an auto-battler with seeded RNG, drift should be zero.
-            // For now, we trust the local seeded simulation for maximum "juice".
+        if (p1.hp <= 0 || p2.hp <= 0) {
+            if (gameOver)
+                return; // Prevent double call
+            gameOver = true;
+            // Force sync outcome data
+            if (p1.hp <= 0 && p2.hp <= 0)
+                forcedOutcome = "draw";
+            else if (p1.hp <= 0)
+                forcedOutcome = localRole === "host" ? "guest" : "host";
+            else if (p2.hp <= 0)
+                forcedOutcome = localRole === "host" ? "host" : "guest";
+            console.log("Battle finished locally. Outcome:", forcedOutcome);
+            // If online, HOST reports the final outcome to the server
+            if (isOnline && localRole === "host" && socket && activeRoomId) {
+                const finalOutcome = resolveHostOutcome();
+                socket.emit("battle_over", {
+                    roomId: activeRoomId,
+                    outcome: finalOutcome
+                });
+                // Send final state with gameOver flag
+                const finalState = {
+                    tick: gameTime,
+                    gameOver: true,
+                    host: serializeFighterState(p1),
+                    guest: serializeFighterState(p2),
+                };
+                socket.emit("battle_state", { roomId: activeRoomId, state: finalState });
+            }
+            handleBattleOutcome();
         }
     }
     // Restore original Math.random
@@ -404,7 +518,44 @@ function update() {
 }
 function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0a0e1a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (gameOver) {
+        // Draw dark overlay
+        ctx.fillStyle = "rgba(0,0,0,0.9)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
+        const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+        let winnerName = "НИЧЬЯ";
+        let winnerColor = "#fff";
+        if (hostWins) {
+            winnerName = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ"));
+            winnerColor = meta.color;
+        }
+        else if (guestWins) {
+            winnerName = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ"));
+            winnerColor = enemy.color;
+        }
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        // Draw Winner Text
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = winnerColor;
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 48px Arial, sans-serif";
+        ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 80);
+        // Draw "ПОБЕДИТЕЛЬ" text
+        ctx.shadowBlur = 0;
+        ctx.font = "bold 28px Arial, sans-serif";
+        ctx.fillStyle = winnerColor;
+        ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 - 20);
+        // Draw hint
+        ctx.font = "20px Arial, sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fillText("Нажмите кнопку ниже для возврата в меню", canvas.width / 2, canvas.height / 2 + 60);
+        requestAnimationFrame(loop);
+        return;
+    }
     ctx.save();
     ctx.scale(dpr, dpr);
     // Keep the original combat world (900x600) and fit it fully into the available phone viewport.
