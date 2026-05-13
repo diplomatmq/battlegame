@@ -517,17 +517,24 @@ function update() {
     }
 }
 function draw() {
+function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#0a0e1a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Check for game over FIRST before any transformations
     if (gameOver) {
+        console.log("Drawing game over screen. Winner:", forcedOutcome, "p1.hp:", p1.hp, "p2.hp:", p2.hp);
         // Draw dark overlay
         ctx.fillStyle = "rgba(0,0,0,0.9)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
         const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
         const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
+        
         let winnerName = "НИЧЬЯ";
         let winnerColor = "#fff";
+        
         if (hostWins) {
             winnerName = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ"));
             winnerColor = meta.color;
@@ -536,26 +543,32 @@ function draw() {
             winnerName = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ"));
             winnerColor = enemy.color;
         }
+        
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        // Draw Winner Text
+        
+        // Draw Winner Name
         ctx.shadowBlur = 30;
         ctx.shadowColor = winnerColor;
         ctx.fillStyle = "#fff";
         ctx.font = "bold 48px Arial, sans-serif";
         ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 80);
+        
         // Draw "ПОБЕДИТЕЛЬ" text
         ctx.shadowBlur = 0;
         ctx.font = "bold 28px Arial, sans-serif";
         ctx.fillStyle = winnerColor;
         ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 - 20);
+        
         // Draw hint
         ctx.font = "20px Arial, sans-serif";
         ctx.fillStyle = "rgba(255,255,255,0.7)";
         ctx.fillText("Нажмите кнопку ниже для возврата в меню", canvas.width / 2, canvas.height / 2 + 60);
+        
         requestAnimationFrame(loop);
         return;
     }
+    
     ctx.save();
     ctx.scale(dpr, dpr);
     // Keep the original combat world (900x600) and fit it fully into the available phone viewport.
@@ -589,42 +602,9 @@ function draw() {
         p1.drawGlobalOverlay(ctx, gameTime);
     if (p2 instanceof JadeMageFighter)
         p2.drawGlobalOverlay(ctx, gameTime);
-    if (gameOver) {
-        drawGameOver();
-        ctx.restore();
-        return;
-    }
     ctx.restore();
     requestAnimationFrame(loop);
 }
-function drawGameOver() {
-    ctx.fillStyle = "rgba(0,0,0,0.82)";
-    ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
-    const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
-    const guestWins = forcedOutcome === "guest" || (forcedOutcome === null && p2.hp > 0 && p1.hp <= 0);
-    let winnerText = "\u041e\u0411\u041e\u042e\u0414\u041d\u041e\u0415";
-    let winnerColor = "#fff";
-    if (hostWins) {
-        winnerText = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
-        winnerColor = p1.color;
-    }
-    else if (guestWins) {
-        winnerText = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ")).toUpperCase() + " \u041f\u041e\u0411\u0415\u0414\u0418\u041b";
-        winnerColor = p2.color;
-    }
-    ctx.textAlign = "center";
-    ctx.font = "bold 26px \"Press Start 2P\"";
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = winnerColor;
-    ctx.fillStyle = "#fff";
-    ctx.fillText(winnerText, ARENA_WIDTH / 2, ARENA_HEIGHT / 2);
-    ctx.shadowBlur = 0;
-    ctx.font = "10px \"Press Start 2P\"";
-    ctx.fillStyle = "#6b4810";
-    ctx.fillText("\u041d\u0410\u0416\u041c\u0418 \u041a\u041d\u041e\u041f\u041a\u0423 \u041d\u0418\u0416\u0415", ARENA_WIDTH / 2, ARENA_HEIGHT / 2 + 56);
-    const btn = document.getElementById("backBtn");
-    if (btn)
-        btn.style.display = "block";
 }
 function loop() { update(); draw(); }
 loop();
