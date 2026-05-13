@@ -288,20 +288,40 @@ function handleBattleOutcome(): void {
   
   gameOver = true;
 
-  // --- NEW: TELEGRAM MAIN BUTTON INTEGRATION ---
+  // Disconnect from socket to prevent further updates
+  if (socket && isOnline) {
+    setTimeout(() => {
+      if (socket) socket.disconnect();
+    }, 1000);
+  }
+
+  // Show back button after a short delay to ensure game over screen is visible
+  setTimeout(() => {
+    showBackButton();
+  }, 500);
+}
+
+function showBackButton(): void {
+  // --- TELEGRAM MAIN BUTTON INTEGRATION ---
   if (window.Telegram && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
     tg.MainButton.text = "ВЕРНУТЬСЯ В МЕНЮ";
+    tg.MainButton.color = "#4CAF50";
+    tg.MainButton.textColor = "#FFFFFF";
     tg.MainButton.show();
     tg.MainButton.onClick(() => {
-      window.location.replace('menu.html');
+      window.location.href = 'menu.html';
     });
   }
 
-  // Still try to show the HTML button as a backup
+  // HTML button as backup
   const btn = document.getElementById("backBtn");
   if (btn) {
-    btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 9999 !important; position: absolute !important; bottom: 10% !important; left: 50% !important; transform: translateX(-50%) !important;";
+    btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 10000 !important; position: fixed !important; bottom: 20px !important; left: 50% !important; transform: translateX(-50%) !important; padding: 15px 40px !important; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; color: white !important; border: none !important; border-radius: 12px !important; font-size: 18px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; pointer-events: auto !important;";
+    btn.textContent = "ВЕРНУТЬСЯ В МЕНЮ";
+    btn.onclick = () => {
+      window.location.href = 'menu.html';
+    };
   }
 }
 
@@ -506,6 +526,35 @@ function update(): void {
     p1.updateAI(gameOver);
     p2.updateAI(gameOver);
     
+    // HOST: Send state to server every 3 frames for synchronization
+    if (isOnline && localRole === "host" && socket && activeRoomId && gameTime % 3 === 0) {
+      const state: SyncedBattleState = {
+        tick: gameTime,
+        gameOver: false,
+        host: serializeFighterState(p1),
+        guest: serializeFighterState(p2),
+      };
+      socket.emit("battle_state", { roomId: activeRoomId, state });
+      lastStateSentAt = gameTime;
+    }
+
+    // GUEST: Apply received state from host to stay in sync
+    if (isOnline && localRole === "guest" && pendingRemoteState) {
+      const remoteState = pendingRemoteState;
+      pendingRemoteState = null;
+      
+      // Apply host's authoritative state
+      applySyncedFighterState(p1, remoteState.host);
+      applySyncedFighterState(p2, remoteState.guest);
+      syncHpBars();
+      
+      // Check if host says game is over
+      if (remoteState.gameOver && !gameOver) {
+        gameOver = true;
+        handleBattleOutcome();
+      }
+    }
+    
     if (p1.hp <= 0 || p2.hp <= 0) {
       if (gameOver) return; // Prevent double call
       gameOver = true;
@@ -516,25 +565,26 @@ function update(): void {
       else if (p2.hp <= 0) forcedOutcome = localRole === "host" ? "host" : "guest";
       
       console.log("Battle finished locally. Outcome:", forcedOutcome);
-      handleBattleOutcome();
       
-      // If online, host reports the final outcome to the server
+      // If online, HOST reports the final outcome to the server
       if (isOnline && localRole === "host" && socket && activeRoomId) {
-          socket.emit("battle_over", {
-              roomId: activeRoomId,
-              outcome: resolveHostOutcome()
-          });
-      }
-    }
-
-    // Optional: Synchronize with server heartbeats if they exist
-    if (isOnline && pendingRemoteState) {
-        // We can use server state to "correct" small drifts, 
-        // but for an auto-battler with seeded RNG, drift should be zero.
-        // For now, we trust the local seeded simulation for maximum "juice".
+        const finalOutcome = resolveHostOutcome();
+        socket.emit("battle_over", {
+          roomId: activeRoomId,
+          outcome: finalOutcome
+        });
         
-        // p1.hp = myState.hp; // Only sync HP if server says so
-        // p2.hp = oppState.hp;
+        // Send final state with gameOver flag
+        const finalState: SyncedBattleState = {
+          tick: gameTime,
+          gameOver: true,
+          host: serializeFighterState(p1),
+          guest: serializeFighterState(p2),
+        };
+        socket.emit("battle_state", { roomId: activeRoomId, state: finalState });
+      }
+      
+      handleBattleOutcome();
     }
   }
 
@@ -560,7 +610,7 @@ function draw(): void {
 
   if (gameOver) {
     // 1. Draw a dark overlay
-    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillStyle = "rgba(0,0,0,0.9)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const hostWins = forcedOutcome === "host" || (forcedOutcome === null && p1.hp > 0 && p2.hp <= 0);
@@ -571,10 +621,10 @@ function draw(): void {
 
     if (hostWins) {
       winnerName = (localRole === "host" ? savedNick : (enemy.name || "ВРАГ"));
-      winnerColor = p1.color;
+      winnerColor = meta.color;
     } else if (guestWins) {
       winnerName = (localRole === "guest" ? savedNick : (enemy.name || "ВРАГ"));
-      winnerColor = p2.color;
+      winnerColor = enemy.color;
     }
 
     ctx.textAlign = "center";
@@ -584,22 +634,16 @@ function draw(): void {
     ctx.shadowBlur = 30;
     ctx.shadowColor = winnerColor;
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 44px Arial, sans-serif";
-    ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 40);
+    ctx.font = "bold 48px Arial, sans-serif";
+    ctx.fillText(winnerName.toUpperCase(), canvas.width / 2, canvas.height / 2 - 50);
     
     // 3. Draw "ПОБЕДИТЕЛЬ" text
     ctx.shadowBlur = 0;
-    ctx.font = "bold 24px Arial, sans-serif";
+    ctx.font = "bold 28px Arial, sans-serif";
     ctx.fillStyle = winnerColor;
-    ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 + 20);
+    ctx.fillText("ПОБЕДИТЕЛЬ", canvas.width / 2, canvas.height / 2 + 10);
 
-    // 4. Force back button
-    const btn = document.getElementById("backBtn");
-    if (btn) {
-      btn.style.cssText = "display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 9999 !important; position: absolute !important; bottom: 20% !important; left: 50% !important; transform: translateX(-50%) !important; padding: 15px 30px !important; background: #222 !important; color: #fff !important; border: 2px solid " + winnerColor + " !important; border-radius: 10px !important; cursor: pointer !important; font-family: sans-serif !important; font-weight: bold !important;";
-    }
-
-    // Still request next frame to ensure button/text stays there
+    // Continue animation loop to keep overlay visible
     requestAnimationFrame(loop);
     return;
   }

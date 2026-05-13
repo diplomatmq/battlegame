@@ -137,14 +137,21 @@ io.on('connection', (socket) => {
   socket.on('battle_state', (payload) => {
     const match = activeMatches.get(socket.id);
     if (!match || match.role !== 'host') return;
-    io.to(match.opponentId).emit('battle_state', payload);
+    // Relay state to opponent
+    const state = payload && payload.state ? payload.state : payload;
+    io.to(match.opponentId).emit('battle_state', { state });
   });
 
   socket.on('battle_over', (payload) => {
     const match = activeMatches.get(socket.id);
     if (!match) return;
-    io.to(match.opponentId).emit('battle_over', payload || {});
-    clearMatchBySocketId(socket.id);
+    // Broadcast outcome to opponent
+    const outcome = payload && payload.outcome ? payload.outcome : 'draw';
+    io.to(match.opponentId).emit('battle_over', { outcome });
+    // Clean up match
+    setTimeout(() => {
+      clearMatchBySocketId(socket.id);
+    }, 2000);
   });
 
   socket.on('disconnect', () => {
