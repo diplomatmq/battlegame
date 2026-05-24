@@ -231,7 +231,10 @@ let lastStateSentAt = 0;
 let outcomeHandled = false;
 let forcedOutcome: MatchOutcome | null = null;
 
-const socket: SocketLike | null = typeof window.io === "function" ? window.io() : null;
+const socket: SocketLike | null = typeof window.io === "function" ? window.io({
+  transports: ['polling', 'websocket'],
+  path: '/socket.io'
+}) : null;
 
 function syncHpBars(): void {
   hp1Fill.style.width = `${(p1.hp / p1.maxHp) * 100}%`;

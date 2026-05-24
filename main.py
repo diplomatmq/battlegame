@@ -40,10 +40,11 @@ fastapi_app.add_middleware(
 sio = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',
+    allow_eio3=True,
     logger=True,
     engineio_logger=True
 )
-app = socketio.ASGIApp(sio, fastapi_app)
+app = socketio.ASGIApp(sio, fastapi_app, socketio_path='/socket.io')
 
 bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
 dp = Dispatcher() if TELEGRAM_TOKEN else None
@@ -463,9 +464,9 @@ async def telegram_webhook(token: str, request: Request):
         await dp.feed_update(bot, update)
     return {"ok": True}
 
-@fastapi_app.get("/socket.io/socket.io.js")
-async def socket_io_js():
-    return RedirectResponse("https://cdn.socket.io/4.7.5/socket.io.min.js")
+@fastapi_app.get("/health")
+async def health_check():
+    return {"status": "ok", "socketio": socketio.__version__ if hasattr(socketio, "__version__") else "unknown"}
 
 # Mount static files correctly
 fastapi_app.mount("/dist", StaticFiles(directory="dist"), name="dist")
