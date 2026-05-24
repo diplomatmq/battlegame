@@ -13,6 +13,9 @@ import asyncpg
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+
 # --- Настройка логирования ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,11 +24,25 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv("DATABASE_URL")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-WEB_APP_BASE_URL = os.getenv("WEB_APP_BASE_URL", WEBHOOK_URL)
 
 # --- FastAPI & Socket.io ---
 fastapi_app = FastAPI()
-sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+
+# Add CORS middleware to FastAPI
+fastapi_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+sio = socketio.AsyncServer(
+    async_mode='asgi',
+    cors_allowed_origins='*',
+    logger=True,
+    engineio_logger=True
+)
 app = socketio.ASGIApp(sio, fastapi_app)
 
 bot = Bot(token=TELEGRAM_TOKEN) if TELEGRAM_TOKEN else None
@@ -448,11 +465,7 @@ async def telegram_webhook(token: str, request: Request):
 
 @fastapi_app.get("/socket.io/socket.io.js")
 async def socket_io_js():
-    # Use CDN fallback if local file not found to prevent 404
-    local_path = "node_modules/socket.io/client-dist/socket.io.min.js"
-    if os.path.exists(local_path):
-        return FileResponse(local_path)
-    return JSONResponse(status_code=404, content={"error": "Local socket.io not found, use CDN"})
+    return RedirectResponse("https://cdn.socket.io/4.7.5/socket.io.min.js")
 
 # Mount static files correctly
 fastapi_app.mount("/dist", StaticFiles(directory="dist"), name="dist")
