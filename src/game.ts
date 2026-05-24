@@ -366,6 +366,10 @@ function startOfflineBattle(): void {
   activeRoomId = null;
   pendingRemoteState = null;
   setBattleStatus("АВТОМАТИЧЕСКИЙ БОЙ");
+  
+  // Show back button even in offline mode if needed
+  const btn = document.getElementById("backBtn");
+  if (btn) btn.style.display = "block";
 }
 
 function startOnlineGame(opponentData: OnlineProfile, seed: number) {
@@ -377,6 +381,10 @@ function startOnlineGame(opponentData: OnlineProfile, seed: number) {
   gameTime = 0;
   lastStateSentAt = 0;
   state.screenShake = 0;
+
+  // Show back button during search/game so player can leave
+  const btn = document.getElementById("backBtn");
+  if (btn) btn.style.display = "block";
   
   // Set seed BEFORE creating fighters to ensure identical random initialization (auraPhase, etc.)
   currentSeed = seed || 12345;
@@ -438,6 +446,10 @@ function startOnlineGame(opponentData: OnlineProfile, seed: number) {
 }
 
 function playOnline() {
+  // Show back button immediately when search starts
+  const btn = document.getElementById("backBtn");
+  if (btn) btn.style.display = "block";
+
   if (!socket) {
     startOfflineBattle();
     return;
@@ -561,13 +573,13 @@ function update(): void {
     
     // HOST: Send state to server every 3 frames for synchronization
     if (isOnline && localRole === "host" && socket && activeRoomId && gameTime % 3 === 0) {
-      const state: SyncedBattleState = {
+      const battleState: SyncedBattleState = {
         tick: gameTime,
         gameOver: false,
         host: serializeFighterState(p1),
         guest: serializeFighterState(p2),
       };
-      socket.emit("battle_state", { roomId: activeRoomId, state });
+      socket.emit("battle_state", { roomId: activeRoomId, state: battleState });
       lastStateSentAt = gameTime;
     }
 

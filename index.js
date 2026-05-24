@@ -137,17 +137,25 @@ io.on('connection', (socket) => {
   socket.on('battle_state', (payload) => {
     const match = activeMatches.get(socket.id);
     if (!match || match.role !== 'host') return;
+    
     // Relay state to opponent
+    const roomId = match.roomId;
     const state = payload && payload.state ? payload.state : payload;
-    io.to(match.opponentId).emit('battle_state', { state });
+    
+    // Use broadcast to room instead of direct emit to ensure reliability
+    socket.to(roomId).emit('battle_state', { state });
   });
 
   socket.on('battle_over', (payload) => {
     const match = activeMatches.get(socket.id);
     if (!match) return;
-    // Broadcast outcome to opponent
+    
+    const roomId = match.roomId;
     const outcome = payload && payload.outcome ? payload.outcome : 'draw';
-    io.to(match.opponentId).emit('battle_over', { outcome });
+    
+    // Broadcast outcome to everyone in the room
+    io.to(roomId).emit('battle_over', { outcome });
+    
     // Clean up match
     setTimeout(() => {
       clearMatchBySocketId(socket.id);
