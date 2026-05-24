@@ -38,6 +38,202 @@ async def get_db_pool():
         pool = await asyncpg.create_pool(DATABASE_URL)
     return pool
 
+# --- Модели данных ---
+class SyncUserRequest(BaseModel):
+    telegram_id: str
+    username: Optional[str] = None
+    character_id: Optional[str] = None
+    faction: Optional[str] = None
+
+class CharacterRequest(BaseModel):
+    telegram_id: str
+    character_id: str
+    faction: Optional[str] = "human"
+
+class TelegramRequest(BaseModel):
+    chatId: int
+    text: str
+
+# --- База данных (утилиты) ---
+async def register_player(telegram_id: str, username: str):
+    pool = await get_db_pool()
+    if not pool: return None
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """INSERT INTO players (telegram_id, username)
+                   VALUES ($1, $2)
+                   ON CONFLICT (telegram_id)
+                   DO UPDATE SET username = CASE
+                     WHEN EXCLUDED.username IS NULL OR EXCLUDED.username = '' THEN players.username
+                     ELSE EXCLUDED.username
+                   END
+                   RETURNING id""",
+                str(telegram_id), username
+            )
+            return row['id']
+    except Exception as e:
+        logger.error(f"DB register_player error: {e}")
+        return None
+
+async def add_user_character(user_id: int, character_id: str, faction: str):
+    pool = await get_db_pool()
+    if not pool: return
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO user_characters (user_id, character_id, faction) VALUES ($1, $2, $3)",
+                user_id, character_id, faction
+            )
+    except Exception as e:
+        logger.error(f"DB add_user_character error: {e}")
+
+async def ensure_user_character_for_user_id(user_id: int, character_id: str, faction: str):
+    pool = await get_db_pool()
+    if not pool: return {"created": False, "updated": False}
+    try:
+        async with pool.acquire() as conn:
+            existing = await conn.fetchrow(
+                "SELECT id, character_id FROM user_characters WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
+                user_id
+            )
+            if not existing:
+                await add_user_character(user_id, character_id, faction)
+                return {"created": True, "updated": False}
+            
+            if existing['character_id'] != character_id:
+                await conn.execute(
+                    "UPDATE user_characters SET character_id = $1, faction = $2 WHERE id = $3",
+                    character_id, faction, existing['id']
+                )
+                return {"created": False, "updated": True}
+            
+            return {"created": False, "updated": False}
+    except Exception as e:
+        logger.error(f"DB ensure_user_character_for_user_id error: {e}")
+        return {"created": False, "updated": False}
+
+async def ensure_user_character_by_telegram_id(telegram_id: str, character_id: str, faction: str):
+    pool = await get_db_pool()
+    if not pool: return None
+    try:
+        async with pool.acquire() as conn:
+            user_res = await conn.fetchrow('SELECT id FROM players WHERE telegram_id = $1 LIMIT 1', str(telegram_id))
+            if not user_res: return None
+            return await ensure_user_character_for_user_id(user_res['id'], character_id, faction)
+    except Exception as e:
+        logger.error(f"DB ensure_user_character_by_telegram_id error: {e}")
+        return None
+
+# --- API Роуты ---
+
+@fastapi_app.post("/api/sync-user")
+async def sync_user(req: SyncUserRequest):
+    telegram_id = str(req.telegram_id)
+    username = req.username or f"player_{telegram_id}"
+    character_id = req.character_id
+    faction = req.faction or "human"
+    
+    try:
+        await register_player(telegram_id, username)
+        sync_result = {"created": False, "updated": False}
+        if character_id:
+            res = await ensure_user_character_by_telegram_id(telegram_id, character_id, faction)
+            if res: sync_result = res
+            
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            profile = await conn.fetchrow(
+                """SELECT p.username, uc.character_id
+                   FROM players p
+                   LEFT JOIN user_characters uc ON uc.user_id = p.id
+                   WHERE p.telegram_id = $1
+                   ORDER BY uc.created_at DESC NULLS LAST
+                   LIMIT 1""",
+                telegram_id
+            )
+            
+            row = profile if profile else None
+            return {
+                "ok": True,
+                "id": telegram_id,
+                "username": row['username'] if row and row['username'] else username,
+                "charId": row['character_id'] if row else None,
+                "sync": sync_result
+            }
+    except Exception as e:
+        logger.error(f"API /api/sync-user error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@fastapi_app.get("/api/user/{user_id}")
+async def get_user_info(user_id: str, username: Optional[str] = None, charId: Optional[str] = None):
+    try:
+        avatar = None
+        # Try to get avatar from Telegram
+        if bot:
+            try:
+                chat = await bot.get_chat(user_id)
+                if not username and chat:
+                    username = chat.username or chat.first_name
+                
+                photos = await bot.get_user_profile_photos(user_id, limit=1)
+                if photos and photos.total_count > 0:
+                    file_id = photos.photos[0][0].file_id
+                    file = await bot.get_file(file_id)
+                    if file and file.file_path:
+                        avatar = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file.file_path}"
+            except Exception as e:
+                logger.warn(f"Telegram API error for user {user_id}: {e}")
+
+        await register_player(str(user_id), username or f"player_{user_id}")
+        
+        if charId:
+            await ensure_user_character_by_telegram_id(str(user_id), charId, "human")
+            
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            char_res = await conn.fetchrow(
+                """SELECT p.username, uc.character_id 
+                   FROM players p 
+                   LEFT JOIN user_characters uc ON p.id = uc.user_id 
+                   WHERE p.telegram_id = $1 
+                   ORDER BY uc.created_at DESC NULLS LAST LIMIT 1""",
+                str(user_id)
+            )
+            if char_res:
+                if not username: username = char_res['username']
+                charId = char_res['character_id']
+                
+        return {"ok": True, "id": user_id, "username": username, "avatar": avatar, "charId": charId}
+    except Exception as e:
+        logger.error(f"API /api/user/{user_id} error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@fastapi_app.post("/api/character")
+async def save_character(req: CharacterRequest):
+    try:
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            user_res = await conn.fetchrow('SELECT id FROM players WHERE telegram_id = $1', str(req.telegram_id))
+            if not user_res:
+                return JSONResponse(status_code=404, content={"ok": False, "error": "User not found"})
+            
+            sync = await ensure_user_character_for_user_id(user_res['id'], req.character_id, req.faction or "human")
+            return {"ok": True, "sync": sync}
+    except Exception as e:
+        logger.error(f"API /api/character error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@fastapi_app.post("/telegram")
+async def send_telegram_msg(req: TelegramRequest):
+    if not bot: return {"ok": False, "error": "Bot not initialized"}
+    try:
+        await bot.send_message(req.chatId, req.text)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"API /telegram error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 # --- Server-Side Battle Engine ---
 class ServerFighter:
     def __init__(self, side: str, profile: Dict):
@@ -207,6 +403,42 @@ async def play(sid, profile):
         waiting_player = (sid, profile)
         await sio.emit("waiting", room=sid)
 
+@sio.event
+async def battle_state(sid, data):
+    room_id = data.get("roomId")
+    state = data.get("state")
+    if room_id:
+        # Relay state to other players in the room except sender
+        await sio.emit("battle_state", {"state": state}, room=room_id, skip_sid=sid)
+
+@sio.event
+async def battle_over(sid, data):
+    room_id = data.get("roomId")
+    outcome = data.get("outcome")
+    if room_id:
+        # Broadcast outcome to everyone in the room
+        await sio.emit("battle_over", {"outcome": outcome}, room=room_id)
+        # Clean up battle instance after a short delay
+        async def cleanup():
+            await asyncio.sleep(2.0)
+            if room_id in active_battles:
+                del active_battles[room_id]
+        asyncio.create_task(cleanup())
+
+@sio.event
+async def disconnect(sid):
+    global waiting_player
+    if waiting_player and waiting_player[0] == sid:
+        waiting_player = None
+    
+    # Notify opponent if in a battle
+    for room_id, battle in list(active_battles.items()):
+        if sid == battle.host_sid or sid == battle.guest_sid:
+            await sio.emit("opponent_left", room=room_id)
+            if room_id in active_battles:
+                del active_battles[room_id]
+            break
+
 @fastapi_app.post("/bot/{token}")
 async def telegram_webhook(token: str, request: Request):
     if dp and token == TELEGRAM_TOKEN:
@@ -214,10 +446,27 @@ async def telegram_webhook(token: str, request: Request):
         await dp.feed_update(bot, update)
     return {"ok": True}
 
+@fastapi_app.get("/socket.io/socket.io.js")
+async def socket_io_js():
+    # Use CDN fallback if local file not found to prevent 404
+    local_path = "node_modules/socket.io/client-dist/socket.io.min.js"
+    if os.path.exists(local_path):
+        return FileResponse(local_path)
+    return JSONResponse(status_code=404, content={"error": "Local socket.io not found, use CDN"})
+
+# Mount static files correctly
+fastapi_app.mount("/dist", StaticFiles(directory="dist"), name="dist")
+fastapi_app.mount("/src", StaticFiles(directory="src"), name="src")
+
 @fastapi_app.get("/{path:path}")
 async def static_proxy(path: str):
-    if not path: path = "index.html"
-    if os.path.exists(path): return FileResponse(path)
+    if not path or path == "/": path = "index.html"
+    
+    # Check if file exists in root
+    if os.path.exists(path) and os.path.isfile(path):
+        return FileResponse(path)
+    
+    # Fallback to index.html for SPA routing
     return FileResponse("index.html")
 
 if __name__ == "__main__":
